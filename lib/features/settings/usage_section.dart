@@ -215,138 +215,194 @@ class _UsageSectionState extends State<UsageSection>
           balance: balance,
         );
         final showCost = !summary.hasUnknownCost;
-        return SettingsCard(
-          title: 'Consumo de IA · ${provider.name}',
+        final low = summary.remaining != null && summary.remaining! < 0.5;
+        final hint = theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        );
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 12,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            SettingsCard(
+              title: 'Consumo de IA',
               children: [
-                Expanded(
-                  child: _Stat(
-                    label: 'Hoy',
-                    value: showCost
-                        ? usd(summary.todayCost)
-                        : '${summary.todayCount}',
-                    detail: '${summary.todayCount} consultas',
+                Text(provider.name, style: hint),
+                // Dos recuadros iguales: el número grande y abajo las
+                // consultas (pedido del usuario: más ordenado).
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    spacing: 10,
+                    children: [
+                      Expanded(
+                        child: _Stat(
+                          label: 'Hoy',
+                          value: showCost
+                              ? usd(summary.todayCost)
+                              : '${summary.todayCount}',
+                          detail: _consultas(summary.todayCount),
+                        ),
+                      ),
+                      Expanded(
+                        child: _Stat(
+                          label: 'Este mes',
+                          value: showCost
+                              ? usd(summary.monthCost)
+                              : '${summary.monthCount}',
+                          detail: _consultas(summary.monthCount),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Expanded(
-                  child: _Stat(
-                    label: 'Este mes',
-                    value: showCost
-                        ? usd(summary.monthCost)
-                        : '${summary.monthCount}',
-                    detail: '${summary.monthCount} consultas',
-                  ),
+                Text(
+                  showCost
+                      ? 'Gasto por día (últimos 14 días)'
+                      : 'Consultas por día (últimos 14 días)',
+                  style: theme.textTheme.labelLarge,
                 ),
-                Expanded(
-                  child: _Stat(
-                    label: 'Saldo estimado',
-                    value: summary.remaining == null
-                        ? '—'
-                        : usd(summary.remaining!),
-                    detail: balance == null
-                        ? 'Anotá tu saldo'
-                        : 'desde el ${DateFormat('d/M', Fmt.locale).format(balance.$2)}',
-                    warn: summary.remaining != null && summary.remaining! < 0.5,
-                  ),
-                ),
+                UsageBars(days: summary.days, showCost: showCost),
               ],
             ),
-            Text(
-              showCost
-                  ? 'Gasto por día (últimos 14 días)'
-                  : 'Consultas por día (últimos 14 días)',
-              style: theme.textTheme.labelLarge,
-            ),
-            UsageBars(days: summary.days, showCost: showCost),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
+            SettingsCard(
+              title: 'Saldo estimado',
               children: [
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.edit),
-                  label: Text(
-                    balance == null ? 'Anotar saldo' : 'Actualizar saldo',
-                  ),
-                  onPressed: () => _askBalance(context),
+                _Stat(
+                  label: balance == null
+                      ? 'Todavía no anotaste tu saldo'
+                      : 'Te queda, más o menos',
+                  value: summary.remaining == null
+                      ? '—'
+                      : usd(summary.remaining!),
+                  detail: balance == null
+                      ? 'Anotalo para que la app te lo vaya restando'
+                      : 'Anotado el ${DateFormat('d/M', Fmt.locale).format(balance.$2)}'
+                            '${low ? ' · ¡queda poco!' : ''}',
+                  warn: low,
+                  big: true,
                 ),
-                FilledButton.tonalIcon(
-                  icon: const Icon(Icons.open_in_new),
-                  label: const Text('Ver o cargar saldo'),
-                  onPressed: () => _openBillingPage(provider.billingUrl),
+                Row(
+                  spacing: 10,
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        icon: const Icon(Icons.edit, size: 18),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            balance == null
+                                ? 'Anotar saldo'
+                                : 'Actualizar saldo',
+                            maxLines: 1,
+                          ),
+                        ),
+                        onPressed: () => _askBalance(context),
+                      ),
+                    ),
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        label: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text('Ver o cargar', maxLines: 1),
+                        ),
+                        onPressed: () => _openBillingPage(provider.billingUrl),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
             Text(
               showCost
                   ? 'Es un cálculo de la app con el precio de cada modelo; puede diferir un poco del real. '
-                        'Con "Ver o cargar saldo" vas a la página de ${provider.name} y, al volver, '
+                        'Con "Ver o cargar" vas a la página de ${provider.name} y, al volver, '
                         'la app te pregunta el saldo que te figura para quedar al día.'
                   : 'No conozco el precio del modelo que usás, así que muestro cantidad de consultas. '
                         'El gasto exacto y la carga de saldo están en la página de ${provider.name}.',
-              style: theme.textTheme.bodySmall,
+              style: hint,
             ),
           ],
         );
       },
     );
   }
+
+  static String _consultas(int n) => n == 1 ? '1 consulta' : '$n consultas';
 }
 
+/// Un número en su recuadro: arriba qué es, en el medio el número grande y
+/// abajo el detalle, todo centrado.
 class _Stat extends StatelessWidget {
   const _Stat({
     required this.label,
     required this.value,
     required this.detail,
     this.warn = false,
+    this.big = false,
   });
 
   final String label;
   final String value;
   final String detail;
   final bool warn;
+  final bool big;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Row(
-          children: [
-            if (warn) ...[
-              Icon(
-                Icons.warning_amber,
-                size: 16,
-                color: theme.colorScheme.error,
-              ),
-              const SizedBox(width: 2),
-            ],
-            Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  value,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ),
+    final scheme = theme.colorScheme;
+    final color = warn ? scheme.error : null;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      decoration: BoxDecoration(
+        color: warn
+            ? scheme.errorContainer.withValues(alpha: 0.5)
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        border: Border.all(color: warn ? scheme.error : scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
             ),
-          ],
-        ),
-        Text(detail, style: theme.textTheme.bodySmall),
-      ],
+          ),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              maxLines: 1,
+              style:
+                  (big
+                          ? theme.textTheme.headlineMedium
+                          : theme.textTheme.headlineSmall)
+                      ?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+            ),
+          ),
+          Text(
+            detail,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(color: color),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -185,15 +185,27 @@ void main() {
     await tester.scrollUntilVisible(find.text('Copia de seguridad'), 100);
     await tester.tap(find.text('Copia de seguridad'));
     await tester.pumpAndSettle();
+    // Afuera, dos recuadros iguales: Guardar copia y Recuperar copia.
+    expect(
+      find.text('Todavía no hay copia: tocá para elegir dónde'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('backup-save-tile')));
+    await tester.pumpAndSettle();
     expect(find.text('Todavía no hay copia'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('backup-choose')));
     await tester.pumpAndSettle();
     expect(find.text('Copia al día ✓'), findsOneWidget);
     expect(find.text('Guardar copia ahora'), findsOneWidget);
+    await tester.tap(find.byType(BackButton).last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Al día ✓'), findsOneWidget);
 
     // Se borra en el teléfono y se recupera de la copia, confirmando antes.
     await repo.delete((await repo.watchAll().first).single.id!);
+    await tester.tap(find.byKey(const Key('backup-restore-tile')));
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const Key('backup-restore')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('backup-restore')));

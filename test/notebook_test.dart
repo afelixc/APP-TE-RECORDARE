@@ -369,4 +369,27 @@ void main() {
     final back = NoteFolder.decodeAll(NoteFolder.encodeAll(s.folders));
     expect(back.single.memos.single.text, 'Boca 42 mm\nAltura 18 cm');
   });
+
+  testWidgets('libreta: elegir varias y borrarlas juntas', (tester) async {
+    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
+    final f = await s.addFolder('Taller', folderColors.first);
+    await s.addNotes(f, ['Uno', 'Dos', 'Tres']);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FolderPage(settings: s, folder: f),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('folder-pick')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Uno'));
+    await tester.tap(find.text('Tres'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 elegidas'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('folder-pick-delete')));
+    await tester.pumpAndSettle();
+    expect(f.items.map((n) => n.text), ['Dos']);
+    await tester.tap(find.text('Deshacer'));
+    await tester.pumpAndSettle();
+    expect(f.items.map((n) => n.text), ['Uno', 'Dos', 'Tres']);
+  });
 }

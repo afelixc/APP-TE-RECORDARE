@@ -39,7 +39,7 @@ class SettingsScreen extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.symmetric(vertical: 10),
           children: [
-            _MenuItem(
+            SettingsMenuItem(
               icon: Icons.tune,
               title: 'Modo de uso',
               subtitle: settings.mode == UsageMode.free
@@ -47,7 +47,7 @@ class SettingsScreen extends StatelessWidget {
                   : 'Con IA: escribir o hablar normal',
               page: (_) => _ModePage(settings: settings),
             ),
-            _MenuItem(
+            SettingsMenuItem(
               icon: Icons.auto_awesome,
               title: 'Inteligencia artificial',
               subtitle: settings.hasKey(provider.id)
@@ -61,7 +61,7 @@ class SettingsScreen extends StatelessWidget {
                 child: AiSection(settings: settings),
               ),
             ),
-            _MenuItem(
+            SettingsMenuItem(
               icon: Icons.bar_chart,
               title: 'Consumo de IA',
               subtitle: 'Gasto por día y saldo estimado',
@@ -70,19 +70,19 @@ class SettingsScreen extends StatelessWidget {
                 child: UsageSection(settings: settings),
               ),
             ),
-            _MenuItem(
+            SettingsMenuItem(
               icon: Icons.language,
               title: 'Idioma',
               subtitle: language,
               page: (_) => _LanguagePage(settings: settings),
             ),
-            _MenuItem(
+            SettingsMenuItem(
               icon: Icons.palette_outlined,
               title: 'Colores',
               subtitle: 'Día y noche, la app, almanaque, listado e ícono',
               page: (_) => const ColorsPage(),
             ),
-            _MenuItem(
+            SettingsMenuItem(
               icon: Icons.notifications_outlined,
               title: 'Notificaciones',
               subtitle: 'Sonido, prioridades y permisos',
@@ -96,7 +96,7 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
             if (scope.backup != null)
-              _MenuItem(
+              SettingsMenuItem(
                 icon: Icons.add_to_drive,
                 title: 'Copia de seguridad',
                 subtitle: settings.backupUri == null
@@ -113,7 +113,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             if (scope.calendar != null)
-              _MenuItem(
+              SettingsMenuItem(
                 icon: Icons.calendar_month,
                 title: 'Google Calendar',
                 subtitle: switch ((
@@ -139,30 +139,47 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-class _MenuItem extends StatelessWidget {
-  const _MenuItem({
+class SettingsMenuItem extends StatelessWidget {
+  const SettingsMenuItem({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.page,
+    this.page,
+    this.onTap,
     this.warn = false,
+    this.ok = false,
+    this.inPage = false,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
-  final WidgetBuilder page;
+  final WidgetBuilder? page;
+
+  /// En vez de [page]: qué hacer al tocarlo.
+  final VoidCallback? onTap;
   final bool warn;
+
+  /// En verde (por ejemplo, "Copia al día ✓").
+  final bool ok;
+
+  /// Adentro de una pantalla que ya tiene margen a los costados.
+  final bool inPage;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    const green = Color(0xFF2E7D32);
     return _BoxedTile(
       warn: warn,
+      ok: ok,
+      inPage: inPage,
       child: InkWell(
-        onTap: () =>
-            Navigator.of(context).push(MaterialPageRoute(builder: page)),
+        onTap:
+            onTap ??
+            () => Navigator.of(context).push(MaterialPageRoute(builder: page!)),
         // Todos los recuadros del mismo tamaño (pedido del usuario): el
         // título y la explicación en un renglón cada uno; si no entran, la
         // letra se achica un poco.
@@ -175,9 +192,13 @@ class _MenuItem extends StatelessWidget {
                 CircleAvatar(
                   backgroundColor: warn
                       ? scheme.errorContainer
+                      : ok
+                      ? green.withValues(alpha: 0.15)
                       : scheme.primaryContainer,
                   foregroundColor: warn
                       ? scheme.error
+                      : ok
+                      ? green
                       : scheme.onPrimaryContainer,
                   child: Icon(icon),
                 ),
@@ -197,7 +218,13 @@ class _MenuItem extends StatelessWidget {
                       _FitLine(
                         subtitle,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: warn ? scheme.error : scheme.onSurfaceVariant,
+                          color: warn
+                              ? scheme.error
+                              : ok
+                              ? (theme.brightness == Brightness.dark
+                                    ? const Color(0xFF66BB6A)
+                                    : green)
+                              : scheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -259,20 +286,33 @@ class _FitLine extends StatelessWidget {
 
 /// Recuadro de cada opción del menú.
 class _BoxedTile extends StatelessWidget {
-  const _BoxedTile({required this.child, this.warn = false});
+  const _BoxedTile({
+    required this.child,
+    this.warn = false,
+    this.ok = false,
+    this.inPage = false,
+  });
 
   final Widget child;
   final bool warn;
+  final bool ok;
+  final bool inPage;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      margin: EdgeInsets.symmetric(horizontal: inPage ? 0 : 16, vertical: 5),
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        side: BorderSide(color: warn ? scheme.error : scheme.outlineVariant),
+        side: BorderSide(
+          color: warn
+              ? scheme.error
+              : ok
+              ? const Color(0xFF2E7D32)
+              : scheme.outlineVariant,
+        ),
         borderRadius: BorderRadius.circular(14),
       ),
       child: child,

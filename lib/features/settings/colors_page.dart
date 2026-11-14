@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/app_scope.dart';
+import '../../core/fit.dart';
 import '../../core/palette.dart';
 import '../../core/settings.dart';
 import '../../core/theme.dart';
@@ -72,28 +73,60 @@ class _ColorsPageState extends State<ColorsPage> {
                 title: 'Día y noche',
                 icon: Icons.brightness_6_outlined,
                 children: [
-                  SegmentedButton<DayNight>(
-                    showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(
-                        value: DayNight.auto,
-                        label: Text('Como el teléfono'),
-                      ),
-                      ButtonSegment(
-                        value: DayNight.day,
-                        label: Text('Siempre día'),
-                      ),
-                      ButtonSegment(
-                        value: DayNight.night,
-                        label: Text('Siempre noche'),
-                      ),
-                    ],
-                    selected: {settings.dayNight},
-                    onSelectionChanged: (v) {
-                      settings.setDayNight(v.first);
-                      if (v.first != DayNight.auto) {
-                        setState(() => _night = v.first == DayNight.night);
-                      }
+                  // Tres casilleros iguales, el dibujito arriba y el texto
+                  // centrado (pedido del usuario: estaba descajetado).
+                  LayoutBuilder(
+                    builder: (context, box) {
+                      // La misma letra en los tres: la que le entra al más
+                      // largo.
+                      final size = sameFontSize(
+                        context,
+                        const [
+                          'Como el teléfono',
+                          'Siempre día',
+                          'Siempre noche',
+                        ],
+                        (box.maxWidth - 16) / 3 - 10,
+                        weight: FontWeight.w800,
+                      );
+                      return IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          spacing: 8,
+                          children: [
+                            for (final (v, icon, label) in const [
+                              (
+                                DayNight.auto,
+                                Icons.phone_android,
+                                'Como el teléfono',
+                              ),
+                              (DayNight.day, Icons.light_mode, 'Siempre día'),
+                              (
+                                DayNight.night,
+                                Icons.dark_mode,
+                                'Siempre noche',
+                              ),
+                            ])
+                              Expanded(
+                                child: _ModeButton(
+                                  key: Key('daynight-${v.name}'),
+                                  icon: icon,
+                                  label: label,
+                                  size: size,
+                                  selected: settings.dayNight == v,
+                                  onTap: () {
+                                    settings.setDayNight(v);
+                                    if (v != DayNight.auto) {
+                                      setState(
+                                        () => _night = v == DayNight.night,
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
                     },
                   ),
                   Text(switch (settings.dayNight) {
@@ -920,4 +953,67 @@ class _LogoPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_LogoPainter old) => old.icon != icon;
+}
+
+/// Un casillero de "Día y noche": dibujito arriba y texto centrado.
+class _ModeButton extends StatelessWidget {
+  const _ModeButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.size,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final double size;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: selected ? scheme.primaryContainer : Colors.transparent,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(
+          color: selected ? scheme.primary : scheme.outlineVariant,
+          width: selected ? 2 : 1,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 22,
+                color: selected ? scheme.primary : scheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: size,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                    color: selected ? scheme.onPrimaryContainer : null,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

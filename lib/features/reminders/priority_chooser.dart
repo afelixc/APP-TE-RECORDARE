@@ -63,13 +63,17 @@ class PriorityChooser extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 3),
-        Text(
-          _explain(priority, config),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: 11,
-            color: scheme.onSurfaceVariant,
+        // Un renglón: si no entra, la letra se achica.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            _explain(priority, config),
+            maxLines: 1,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 11,
+              color: scheme.onSurfaceVariant,
+            ),
           ),
         ),
         InkWell(

@@ -48,12 +48,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final repo = AppScope.of(context).reminders;
+    // Sin "Nuevo": para cargar está el micrófono de arriba (pedido del
+    // usuario).
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showReminderEditor(context, initialDay: _selected),
-        icon: const Icon(Icons.add),
-        label: const Text('Nuevo'),
-      ),
       body: StreamBuilder<List<Reminder>>(
         stream: repo.watchAll(),
         builder: (context, snapshot) {

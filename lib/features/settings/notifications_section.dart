@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../core/sheets.dart';
-
 import '../../core/app_scope.dart';
+import '../../core/fit.dart';
+import '../../core/sheets.dart';
 import '../../data/reminder_repository.dart';
 import '../../data/scheduling_reminder_repository.dart';
 import '../notifications/notification_service.dart';
@@ -145,48 +145,84 @@ class _NotificationsSectionState extends State<NotificationsSection>
                   ],
                 ],
                 const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.battery_saver_outlined),
-                  label: const Text('Evitar que el teléfono cierre la app'),
+                // Centrado y en un renglón (pedido del usuario).
+                OutlinedButton(
+                  key: const Key('battery-help'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
                   onPressed: () => showBatteryHelp(context),
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.battery_saver_outlined, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Evitar que el teléfono cierre la app',
+                          maxLines: 1,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Text('Probar', style: theme.textTheme.labelLarge),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.tonal(
-                        style: _testStyle,
-                        onPressed: () async {
-                          String? warning;
-                          await _run(
-                            () async => warning = await service.showTest(),
-                            'Aviso de prueba enviado',
-                          );
-                          if (warning != null && context.mounted) {
-                            showSoundWarning(context, warning!, () async {
-                              await service.showTest();
-                              _refresh();
-                            });
-                          }
-                        },
-                        child: const _OneLine('Aviso ahora'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton.tonal(
-                        style: _testStyle,
-                        onPressed: () => _run(
-                          () =>
-                              service.scheduleTest(const Duration(minutes: 1)),
-                          'Te llega un aviso en 1 minuto. Podés cerrar la app.',
+                // Los dos con la misma letra: la que le entra al más largo.
+                LayoutBuilder(
+                  builder: (context, box) {
+                    final size = sameFontSize(context, const [
+                      'Aviso ahora',
+                      'Aviso en 1 minuto',
+                    ], (box.maxWidth - 8) / 2 - 20);
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.tonal(
+                            style: _testStyle,
+                            onPressed: () async {
+                              String? warning;
+                              await _run(
+                                () async => warning = await service.showTest(),
+                                'Aviso de prueba enviado',
+                              );
+                              if (warning != null && context.mounted) {
+                                showSoundWarning(context, warning!, () async {
+                                  await service.showTest();
+                                  _refresh();
+                                });
+                              }
+                            },
+                            child: Text(
+                              'Aviso ahora',
+                              maxLines: 1,
+                              style: TextStyle(fontSize: size),
+                            ),
+                          ),
                         ),
-                        child: const _OneLine('Aviso en 1 minuto'),
-                      ),
-                    ),
-                  ],
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton.tonal(
+                            style: _testStyle,
+                            onPressed: () => _run(
+                              () => service.scheduleTest(
+                                const Duration(minutes: 1),
+                              ),
+                              'Te llega un aviso en 1 minuto. Podés cerrar la app.',
+                            ),
+                            child: Text(
+                              'Aviso en 1 minuto',
+                              maxLines: 1,
+                              style: TextStyle(fontSize: size),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             );
@@ -202,18 +238,6 @@ final _testStyle = FilledButton.styleFrom(
   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
   alignment: Alignment.center,
 );
-
-class _OneLine extends StatelessWidget {
-  const _OneLine(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => FittedBox(
-    fit: BoxFit.scaleDown,
-    child: Text(text, maxLines: 1, textAlign: TextAlign.center),
-  );
-}
 
 /// Cartel cuando el aviso de prueba no se va a escuchar, con "Subir volumen".
 void showSoundWarning(

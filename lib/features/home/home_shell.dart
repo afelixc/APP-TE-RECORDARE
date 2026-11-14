@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_scope.dart';
 import '../calendar/calendar_screen.dart';
+import '../chat/ai_chat.dart' show talkWhenChatOpens;
 import '../chat/chat_screen.dart';
 import '../notebook/notebook_fab.dart';
 import '../notifications/reminder_actions_sheet.dart';
+import '../reminders/reminder_editor.dart';
 import '../reminders/reminders_screen.dart';
 import '../settings/settings_screen.dart';
 
@@ -79,6 +81,18 @@ class _HomeShellState extends State<HomeShell> {
 
   void _select(int i) => setState(() => _index = i);
 
+  /// El micrófono de arriba: con IA va al Chat y escucha; si no, abre la
+  /// carga a mano.
+  void _talk() {
+    final settings = AppScope.of(context).settings;
+    if (settings.aiReady) {
+      talkWhenChatOpens = true;
+      _select(0);
+    } else {
+      showReminderEditor(context);
+    }
+  }
+
   /// Deslizar el dedo cambia de solapa y al llegar a la última vuelve a la
   /// primera: hacia la izquierda, la de la derecha (Chat → Almanaque →
   /// Listado → Configuración → Chat); hacia la derecha, la anterior.
@@ -133,6 +147,24 @@ class _HomeShellState extends State<HomeShell> {
           'TE RECORDARÉ',
           style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 2),
         ),
+        // Fuera del Chat: un micrófono para cargar algo enseguida (pedido
+        // del usuario, en lugar del botón "Nuevo").
+        actions: [
+          if (_index != 0)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: IconButton.filled(
+                key: const Key('top-mic'),
+                tooltip: 'Hablar para cargar un recordatorio',
+                style: IconButton.styleFrom(
+                  backgroundColor: scheme.secondary,
+                  foregroundColor: scheme.onSecondary,
+                ),
+                icon: const Icon(Icons.mic),
+                onPressed: _talk,
+              ),
+            ),
+        ],
       ),
       body: LayoutBuilder(
         builder: (context, box) {

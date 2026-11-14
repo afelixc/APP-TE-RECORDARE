@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/identity.dart';
 import '../../core/settings.dart';
 import '../ai/ai_provider.dart';
 import '../ai/ai_providers.dart';
@@ -134,6 +135,19 @@ class _AiSectionState extends State<AiSection> {
       ),
     );
     if (ok != true) return;
+    // Para que no se borre sin querer: la huella o el bloqueo del teléfono.
+    final me = await confirmIdentity(
+      title: 'Borrar la clave de ${_provider.name}',
+      detail: 'Poné tu huella o el bloqueo del teléfono.',
+    );
+    if (!me) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('No se borró la clave.')));
+      }
+      return;
+    }
     await _settings.deleteKey(_provider.id);
     setState(() {
       _models = null;

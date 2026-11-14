@@ -56,6 +56,10 @@ class _Last {
 /// tarjeta entera con la prioridad, sin deslizar (pedido del usuario).
 final chatCompact = ValueNotifier<bool>(false);
 
+/// El micrófono de arriba (Almanaque, Listado, Configuración) pide hablar:
+/// al abrirse el Chat empieza a escuchar solo.
+bool talkWhenChatOpens = false;
+
 class AiChat extends StatefulWidget {
   const AiChat({super.key, required this.settings, this.interpreter});
 
@@ -89,6 +93,12 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
   void initState() {
     super.initState();
     _dictation.addListener(_onDictation);
+    if (talkWhenChatOpens) {
+      talkWhenChatOpens = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _startTalking();
+      });
+    }
   }
 
   @override
@@ -820,7 +830,9 @@ class _ReminderCard extends StatelessWidget {
             // entre la tarjeta entera).
             Row(
               children: [
-                Expanded(child: Text(describeSchedule(reminder))),
+                // Un solo renglón: si no entra, la letra se achica (así
+                // siempre se ven la prioridad y el tildecito).
+                Expanded(child: _OneLine(describeSchedule(reminder), size: 14)),
                 const SizedBox(width: 6),
                 Icon(
                   active ? Icons.check_circle : Icons.cancel,
@@ -836,7 +848,12 @@ class _ReminderCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (next != null) Text('Próximo: ${Fmt.when(next)}'),
+            if (next != null)
+              _OneLine(
+                'Próximo: ${Fmt.when(next)}',
+                size: 12.5,
+                color: scheme.onSurfaceVariant,
+              ),
             const SizedBox(height: 6),
             Row(children: actions),
             ?footer,
@@ -1050,6 +1067,30 @@ class _TapToExpandState extends State<TapToExpand> {
         maxLines: _open ? null : widget.maxLines,
         overflow: _open ? TextOverflow.visible : TextOverflow.ellipsis,
         style: widget.style,
+      ),
+    ),
+  );
+}
+
+/// Un renglón de texto: si no entra, se achica la letra (hasta donde haga
+/// falta) en vez de pasar al renglón de abajo.
+class _OneLine extends StatelessWidget {
+  const _OneLine(this.text, {required this.size, this.color});
+
+  final String text;
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerLeft,
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(
+        text,
+        maxLines: 1,
+        style: TextStyle(fontSize: size, color: color),
       ),
     ),
   );

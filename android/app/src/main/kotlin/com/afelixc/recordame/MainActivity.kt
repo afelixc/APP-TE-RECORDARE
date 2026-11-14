@@ -2,6 +2,8 @@ package com.afelixc.recordame
 
 import android.Manifest
 import android.app.Activity
+import android.app.KeyguardManager
+import android.content.Context
 import android.content.pm.PackageManager
 import android.content.Intent
 import android.media.AudioAttributes
@@ -35,6 +37,8 @@ class MainActivity : FlutterActivity() {
     private var pendingCreateData: ByteArray? = null
     private var pendingOpen: MethodChannel.Result? = null
     private val calendarPermissionRequest = 4714
+    private val identityRequest = 4715
+    private var pendingIdentity: MethodChannel.Result? = null
     private var pendingPermission: MethodChannel.Result? = null
     private var playing: Ringtone? = null
     private var player: MediaPlayer? = null
@@ -77,6 +81,19 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "nombre" -> result.success(titleOf(call.argument<String>("uri")))
+                    else -> result.notImplemented()
+                }
+            }
+        // Antes de algo delicado (borrar la clave de la IA): la huella, el
+        // PIN o el patrón del teléfono. Sin bloqueo puesto, deja seguir.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "recordame/identidad")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "confirmar" -> confirmIdentity(
+                        call.argument<String>("titulo") ?: "Confirmá que sos vos",
+                        call.argument<String>("detalle") ?: "",
+                        result,
+                    )
                     else -> result.notImplemented()
                 }
             }
@@ -274,9 +291,31 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    @Suppress("DEPRECATION")
+    private fun confirmIdentity(title: String, detail: String, result: MethodChannel.Result) {
+        val keyguard = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        if (!keyguard.isDeviceSecure) {
+            result.success(true)
+            return
+        }
+        val intent = keyguard.createConfirmDeviceCredentialIntent(title, detail)
+        if (intent == null) {
+            result.success(true)
+            return
+        }
+        pendingIdentity?.success(false)
+        pendingIdentity = result
+        startActivityForResult(intent, identityRequest)
+    }
+
     @Deprecated("Se usa startActivityForResult por simpleza")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == identityRequest) {
+            pendingIdentity?.success(resultCode == Activity.RESULT_OK)
+            pendingIdentity = null
+            return
+        }
         if (requestCode == createRequest || requestCode == openRequest) {
             onBackupResult(requestCode, resultCode, data)
             return

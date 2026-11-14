@@ -5,7 +5,6 @@ import '../../data/reminder.dart';
 import '../calendar/occurrences.dart';
 import '../../core/palette.dart';
 import 'list_colors.dart';
-import 'reminder_editor.dart';
 import 'reminder_tile.dart';
 
 enum _Filter { pending, done, all }
@@ -59,6 +58,53 @@ class _RemindersScreenState extends State<RemindersScreen> {
   final _search = TextEditingController();
   String _query = '';
 
+  /// "Elegir varios" (para borrarlos juntos): null = no se está eligiendo.
+  Set<int>? _picked;
+
+  void _togglePick(int id) => setState(() {
+    final p = _picked ??= {};
+    if (!p.remove(id)) p.add(id);
+  });
+
+  /// Borra los elegidos de una vez, con un solo "Deshacer".
+  Future<void> _deletePicked() async {
+    final ids = _picked ?? {};
+    if (ids.isEmpty) return;
+    final repo = AppScope.of(context).reminders;
+    final messenger = ScaffoldMessenger.of(context);
+    final gone = <Reminder>[];
+    for (final id in ids) {
+      final r = await repo.getById(id);
+      if (r == null) continue;
+      await repo.delete(id);
+      gone.add(r);
+    }
+    setState(() => _picked = null);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            gone.length == 1
+                ? 'Borrado: ${gone.single.title}'
+                : 'Borrados: ${gone.length}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          duration: const Duration(seconds: 5),
+          persist: false,
+          action: SnackBarAction(
+            label: 'Deshacer',
+            onPressed: () async {
+              for (final r in gone) {
+                await repo.save(r);
+              }
+            },
+          ),
+        ),
+      );
+  }
+
   @override
   void dispose() {
     _search.dispose();
@@ -85,61 +131,77 @@ class _RemindersScreenState extends State<RemindersScreen> {
     final repo = AppScope.of(context).reminders;
     final settings = AppScope.of(context).settings;
     final night = Theme.of(context).brightness == Brightness.dark;
+    final picked = _picked;
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showReminderEditor(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Nuevo'),
-      ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<_Filter>(
-                showSelectedIcon: false,
-                // Todo en un renglón, aunque la pantalla sea angosta.
-                style: SegmentedButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  textStyle: const TextStyle(fontSize: 13),
-                ),
-                segments: const [
-                  ButtonSegment(
-                    value: _Filter.pending,
-                    label: Text('Pendientes', maxLines: 1, softWrap: false),
+          if (picked != null)
+            _PickBar(
+              count: picked.length,
+              onCancel: () => setState(() => _picked = null),
+              onDelete: picked.isEmpty ? null : _deletePicked,
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<_Filter>(
+                  showSelectedIcon: false,
+                  // Todo en un renglón, aunque la pantalla sea angosta.
+                  style: SegmentedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    textStyle: const TextStyle(fontSize: 13),
                   ),
-                  ButtonSegment(value: _Filter.done, label: Text('Hechos')),
-                  ButtonSegment(value: _Filter.all, label: Text('Todos')),
-                ],
-                selected: {_filter},
-                onSelectionChanged: (s) => setState(() => _filter = s.first),
+                  segments: const [
+                    ButtonSegment(
+                      value: _Filter.pending,
+                      label: Text('Pendientes', maxLines: 1, softWrap: false),
+                    ),
+                    ButtonSegment(value: _Filter.done, label: Text('Hechos')),
+                    ButtonSegment(value: _Filter.all, label: Text('Todos')),
+                  ],
+                  selected: {_filter},
+                  onSelectionChanged: (s) => setState(() => _filter = s.first),
+                ),
               ),
             ),
-          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: TextField(
-              key: const Key('search'),
-              controller: _search,
-              onChanged: (v) => setState(() => _query = v.trim()),
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                hintText: 'Buscar…',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _query.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Borrar búsqueda',
-                        icon: const Icon(Icons.close),
-                        onPressed: _clearSearch,
+            padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const Key('search'),
+                    controller: _search,
+                    onChanged: (v) => setState(() => _query = v.trim()),
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar…',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _query.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Borrar búsqueda',
+                              icon: const Icon(Icons.close),
+                              onPressed: _clearSearch,
+                            ),
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                isDense: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
                 ),
-              ),
+                IconButton(
+                  key: const Key('pick-many'),
+                  tooltip: 'Elegir varios (para borrar)',
+                  icon: const Icon(Icons.checklist_rtl),
+                  onPressed: () =>
+                      setState(() => _picked = _picked == null ? {} : null),
+                ),
+              ],
             ),
           ),
           Expanded(
@@ -205,6 +267,9 @@ class _RemindersScreenState extends State<RemindersScreen> {
                                 builder: (_, _) => ReminderTile(
                                   key: ValueKey(items[i].id),
                                   reminder: items[i],
+                                  selected: picked?.contains(items[i].id),
+                                  onSelect: () => _togglePick(items[i].id!),
+                                  onLongPress: () => _togglePick(items[i].id!),
                                   // En "Todos", con los colores elegidos.
                                   tint: _filter == _Filter.all
                                       ? softColor(
@@ -225,6 +290,66 @@ class _RemindersScreenState extends State<RemindersScreen> {
                 );
               },
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Arriba, mientras se eligen varios: cuántos, Borrar y Listo.
+class _PickBar extends StatelessWidget {
+  const _PickBar({
+    required this.count,
+    required this.onCancel,
+    required this.onDelete,
+  });
+
+  final int count;
+  final VoidCallback onCancel;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              count == 0
+                  ? 'Tocá los que querés borrar'
+                  : count == 1
+                  ? '1 elegido'
+                  : '$count elegidos',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: scheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+          FilledButton.icon(
+            key: const Key('pick-delete'),
+            style: FilledButton.styleFrom(
+              backgroundColor: scheme.error,
+              foregroundColor: scheme.onError,
+              visualDensity: VisualDensity.compact,
+            ),
+            icon: const Icon(Icons.delete_outline, size: 18),
+            label: const Text('Borrar'),
+            onPressed: onDelete,
+          ),
+          const SizedBox(width: 4),
+          TextButton(
+            key: const Key('pick-cancel'),
+            onPressed: onCancel,
+            child: const Text('Listo'),
           ),
         ],
       ),
@@ -381,10 +506,12 @@ class _Empty extends StatelessWidget {
       _Filter.pending when pending == _Pending.overdue =>
         'No tenés recordatorios vencidos. ¡Bien ahí!',
       _Filter.pending =>
-        'No tenés recordatorios pendientes.\nTocá "Nuevo" para cargar uno.',
+        'No tenés recordatorios pendientes.\nTocá el micrófono de arriba '
+            'para cargar uno.',
       _Filter.done => 'Todavía no marcaste ninguno como hecho.',
       _Filter.all =>
-        'Todavía no cargaste recordatorios.\nTocá "Nuevo" para empezar.',
+        'Todavía no cargaste recordatorios.\nTocá el micrófono de arriba '
+            'para empezar.',
     };
     return Center(
       child: Padding(

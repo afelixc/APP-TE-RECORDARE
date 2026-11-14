@@ -8,9 +8,25 @@ import 'reminder_editor.dart';
 
 /// Un recordatorio en una lista: marcar como hecho, editar y borrar.
 class ReminderTile extends StatelessWidget {
-  const ReminderTile({super.key, required this.reminder, this.tint});
+  const ReminderTile({
+    super.key,
+    required this.reminder,
+    this.tint,
+    this.selected,
+    this.onSelect,
+    this.onLongPress,
+  });
 
   final Reminder reminder;
+
+  /// "Elegir varios": null = no se está eligiendo; si no, si está elegido.
+  final bool? selected;
+
+  /// Al tocarlo mientras se eligen varios.
+  final VoidCallback? onSelect;
+
+  /// Mantenerlo apretado empieza a elegir varios.
+  final VoidCallback? onLongPress;
 
   /// Color de la tarjeta (en Listado → Todos, el que eligió el usuario).
   final SoftColor? tint;
@@ -21,11 +37,14 @@ class ReminderTile extends StatelessWidget {
     await repo.delete(reminder.id!);
     messenger.showSnackBar(
       SnackBar(
-        content: Text('Borrado: ${reminder.title}'),
+        content: Text(
+          'Borrado: ${reminder.title}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         // 5 segundos para deshacer; después se va solo y queda borrado.
         duration: const Duration(seconds: 5),
         persist: false,
-        showCloseIcon: true,
         action: SnackBarAction(
           label: 'Deshacer',
           onPressed: () => repo.save(reminder),
@@ -47,10 +66,14 @@ class ReminderTile extends StatelessWidget {
     // Vencido: recuadro rojo grueso y fondo rosado, en Pendientes y en
     // Todos, para que se vea que hay que reprogramarlo (pedido del usuario).
     final red = night ? const Color(0xFFFF7B7B) : const Color(0xFFC62828);
+    final picking = selected != null;
+    final picked = selected ?? false;
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
-      color: overdue
+      color: picked
+          ? theme.colorScheme.primaryContainer
+          : overdue
           ? Color.alphaBlend(
               red.withValues(alpha: night ? 0.16 : 0.08),
               theme.colorScheme.surface,
@@ -58,10 +81,12 @@ class ReminderTile extends StatelessWidget {
           : tint?.fill(night),
       shape: RoundedRectangleBorder(
         side: BorderSide(
-          color: overdue
+          color: picked
+              ? theme.colorScheme.primary
+              : overdue
               ? red
               : tint?.border(night) ?? theme.colorScheme.outlineVariant,
-          width: overdue ? 2.5 : 1,
+          width: picked || overdue ? 2.5 : 1,
         ),
         borderRadius: BorderRadius.circular(14),
       ),
@@ -70,18 +95,30 @@ class ReminderTile extends StatelessWidget {
       // "Reprogramar" si hace falta, editar y borrar.
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () => showReminderEditor(context, reminder: reminder),
+        onTap: picking
+            ? onSelect
+            : () => showReminderEditor(context, reminder: reminder),
+        onLongPress: picking ? onSelect : onLongPress,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(2, 4, 4, 2),
           child: Row(
             children: [
-              Checkbox(
-                // En uno que se repite, tildarlo corta la repetición.
-                shape: const CircleBorder(),
-                visualDensity: VisualDensity.compact,
-                value: reminder.done,
-                onChanged: (v) => repo.setDone(reminder.id!, v ?? false),
-              ),
+              if (picking)
+                // Eligiendo varios: un cuadradito para elegirlo.
+                Checkbox(
+                  key: Key('pick-${reminder.id}'),
+                  visualDensity: VisualDensity.compact,
+                  value: picked,
+                  onChanged: (_) => onSelect?.call(),
+                )
+              else
+                Checkbox(
+                  // En uno que se repite, tildarlo corta la repetición.
+                  shape: const CircleBorder(),
+                  visualDensity: VisualDensity.compact,
+                  value: reminder.done,
+                  onChanged: (v) => repo.setDone(reminder.id!, v ?? false),
+                ),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -129,7 +166,7 @@ class ReminderTile extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (overdue)
+                          if (overdue && !picking)
                             TextButton.icon(
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
@@ -149,7 +186,7 @@ class ReminderTile extends StatelessWidget {
                             ),
                           // "Reprogramar" abre lo mismo que el lápiz: en los
                           // vencidos va en su lugar, así entra la fecha.
-                          if (!overdue)
+                          if (!overdue && !picking)
                             _SmallIcon(
                               tooltip: 'Editar',
                               icon: Icons.edit_outlined,
@@ -158,11 +195,12 @@ class ReminderTile extends StatelessWidget {
                                 reminder: reminder,
                               ),
                             ),
-                          _SmallIcon(
-                            tooltip: 'Borrar',
-                            icon: Icons.delete_outline,
-                            onPressed: () => _delete(context),
-                          ),
+                          if (!picking)
+                            _SmallIcon(
+                              tooltip: 'Borrar',
+                              icon: Icons.delete_outline,
+                              onPressed: () => _delete(context),
+                            ),
                         ],
                       ),
                     ),

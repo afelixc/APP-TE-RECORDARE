@@ -410,6 +410,87 @@ class _FolderPageState extends State<FolderPage> {
   /// Las notas con lista adentro que están desplegadas.
   late final _open = <NoteItem>{?widget.highlight};
 
+  /// "Elegir varios" para borrarlos juntos: null = no se está eligiendo.
+  Set<Object>? _picked;
+
+  void _togglePick(Object o) => setState(() {
+    final p = _picked ??= {};
+    if (!p.remove(o)) p.add(o);
+  });
+
+  /// Borra lo elegido (tareas o notas) de una vez, con un solo "Deshacer".
+  Future<void> _deletePicked() async {
+    final picked = _picked ?? {};
+    if (picked.isEmpty) return;
+    final tasks = [
+      for (final n in _f.items)
+        if (picked.contains(n)) n,
+    ];
+    final left = tasks.fold<int>(
+      0,
+      (sum, n) => sum + n.sub.where((x) => !x.done).length,
+    );
+    if (left > 0) {
+      final yes = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Fijate: quedaron cosas por hacer'),
+          content: Text(
+            'Entre las elegidas hay $left '
+            '${left == 1 ? 'ítem sin tildar' : 'ítems sin tildar'}. '
+            '¿Las borro igual?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Aceptar'),
+            ),
+          ],
+        ),
+      );
+      if (yes != true) return;
+    }
+    final removedTasks = [for (final n in tasks) (_f.items.indexOf(n), n)];
+    final removedMemos = [
+      for (final m in _f.memos)
+        if (picked.contains(m)) (_f.memos.indexOf(m), m),
+    ];
+    _f.items.removeWhere(picked.contains);
+    _f.memos.removeWhere(picked.contains);
+    await _s.saveNotes();
+    final count = removedTasks.length + removedMemos.length;
+    setState(() {
+      _picked = null;
+      _selected = null;
+    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(count == 1 ? 'Borrado: 1' : 'Borrados: $count'),
+          duration: const Duration(seconds: 5),
+          persist: false,
+          action: SnackBarAction(
+            label: 'Deshacer',
+            onPressed: () async {
+              for (final (i, n) in removedTasks) {
+                _f.items.insert(i.clamp(0, _f.items.length), n);
+              }
+              for (final (i, m) in removedMemos) {
+                _f.memos.insert(i.clamp(0, _f.memos.length), m);
+              }
+              await _s.saveNotes();
+            },
+          ),
+        ),
+      );
+  }
+
   /// Solapa: Tareas (false) o Notas (true).
   late bool _memos = widget.startOnMemos;
   String? _message;
@@ -509,7 +590,11 @@ class _FolderPageState extends State<FolderPage> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text('Borré "${n.text}".'),
+          content: Text(
+            'Borrado: ${n.text}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           duration: const Duration(seconds: 5),
           persist: false,
           action: SnackBarAction(
@@ -645,7 +730,11 @@ class _FolderPageState extends State<FolderPage> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text('Borré la nota "${m.heading}".'),
+          content: Text(
+            'Borrada: ${m.heading}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           duration: const Duration(seconds: 5),
           persist: false,
           action: SnackBarAction(
@@ -690,8 +779,9 @@ class _FolderPageState extends State<FolderPage> {
           child: _MemoCard(
             memo: m,
             color: Color(_f.color),
-            selected: identical(_selected, m),
-            onTap: () => _openMemo(m),
+            selected:
+                identical(_selected, m) || (_picked?.contains(m) ?? false),
+            onTap: _picked != null ? () => _togglePick(m) : () => _openMemo(m),
             onGear: () =>
                 setState(() => _selected = identical(_selected, m) ? null : m),
             onDelete: () => _deleteMemo(m),
@@ -713,6 +803,8 @@ class _FolderPageState extends State<FolderPage> {
   Widget _row(NoteItem n, int number, List<NoteItem> list) {
     final scheme = Theme.of(context).colorScheme;
     final selected = identical(_selected, n);
+    final picking = _picked != null;
+    final picked = _picked?.contains(n) ?? false;
     // Buscando, la nota se muestra abierta si coincide algo de adentro.
     final open =
         n.sub.isNotEmpty &&
@@ -729,17 +821,20 @@ class _FolderPageState extends State<FolderPage> {
           (identical(n, widget.highlight) || _query.isNotEmpty) &&
               _isHit(n.text)
           ? Colors.amber.withValues(alpha: 0.35)
-          : selected
+          : selected || picked
           ? scheme.primaryContainer.withValues(alpha: 0.6)
           : _fresh.contains(n) && !n.done
           ? scheme.secondary.withValues(alpha: 0.18)
           : tint.fill(night),
       child: InkWell(
-        onTap: n.sub.isEmpty
+        onTap: picking
+            ? () => _togglePick(n)
+            : n.sub.isEmpty
             ? () => _edit(n)
             : () => setState(() {
                 if (!_open.remove(n)) _open.add(n);
               }),
+        onLongPress: () => _togglePick(n),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -760,14 +855,18 @@ class _FolderPageState extends State<FolderPage> {
                   ),
                   Checkbox(
                     value: n.done,
-                    onChanged: (v) async {
-                      if (v == true &&
-                          !await _confirmUnfinished(n, 'doy por hecha')) {
-                        return;
-                      }
-                      await _s.setNoteDone(_f, n, v ?? false);
-                      setState(() => _selected = null);
-                    },
+                    // Eligiendo varios, este no se toca (el de elegir va a la
+                    // derecha).
+                    onChanged: picking
+                        ? null
+                        : (v) async {
+                            if (v == true &&
+                                !await _confirmUnfinished(n, 'doy por hecha')) {
+                              return;
+                            }
+                            await _s.setNoteDone(_f, n, v ?? false);
+                            setState(() => _selected = null);
+                          },
                   ),
                   if (n.alarm != null)
                     Padding(
@@ -801,12 +900,19 @@ class _FolderPageState extends State<FolderPage> {
                       open ? Icons.expand_less : Icons.expand_more,
                       color: scheme.onSurfaceVariant,
                     ),
-                  _Gear(
-                    key: Key('gear-$number-${n.done ? 'h' : 'p'}'),
-                    on: selected,
-                    onPressed: () =>
-                        setState(() => _selected = selected ? null : n),
-                  ),
+                  if (picking)
+                    Checkbox(
+                      key: Key('pick-$number-${n.done ? 'h' : 'p'}'),
+                      value: picked,
+                      onChanged: (_) => _togglePick(n),
+                    )
+                  else
+                    _Gear(
+                      key: Key('gear-$number-${n.done ? 'h' : 'p'}'),
+                      on: selected,
+                      onPressed: () =>
+                          setState(() => _selected = selected ? null : n),
+                    ),
                 ],
               ),
             ),
@@ -952,6 +1058,13 @@ class _FolderPageState extends State<FolderPage> {
             ),
             actions: [
               IconButton(
+                key: const Key('folder-pick'),
+                tooltip: 'Elegir varios (para borrar)',
+                icon: Icon(_picked == null ? Icons.checklist_rtl : Icons.close),
+                onPressed: () =>
+                    setState(() => _picked = _picked == null ? {} : null),
+              ),
+              IconButton(
                 key: const Key('folder-edit'),
                 tooltip: 'Cambiar nombre y color',
                 icon: const Icon(Icons.edit_outlined),
@@ -1070,15 +1183,22 @@ class _FolderPageState extends State<FolderPage> {
                   ],
                 ),
               ),
-              NoteInputBar(
-                key: ValueKey(_memos),
-                language: _s.language,
-                speech: widget.speech,
-                hint: _memos
-                    ? 'Escribí o dictá una nota nueva…'
-                    : 'Escribí o dictá tareas para hacer…',
-                onSubmit: _memos ? _addMemo : _add,
-              ),
+              if (_picked != null)
+                _FolderPickBar(
+                  count: _picked!.length,
+                  onCancel: () => setState(() => _picked = null),
+                  onDelete: _picked!.isEmpty ? null : _deletePicked,
+                )
+              else
+                NoteInputBar(
+                  key: ValueKey(_memos),
+                  language: _s.language,
+                  speech: widget.speech,
+                  hint: _memos
+                      ? 'Escribí o dictá una nota nueva…'
+                      : 'Escribí o dictá tareas para hacer…',
+                  onSubmit: _memos ? _addMemo : _add,
+                ),
             ],
           ),
         );
@@ -1838,6 +1958,60 @@ class _MemoPageState extends State<MemoPage> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Abajo, mientras se eligen varios: cuántos, Borrar y Listo.
+class _FolderPickBar extends StatelessWidget {
+  const _FolderPickBar({
+    required this.count,
+    required this.onCancel,
+    required this.onDelete,
+  });
+
+  final int count;
+  final VoidCallback onCancel;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      elevation: 3,
+      color: scheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                count == 0
+                    ? 'Tocá las que querés borrar'
+                    : count == 1
+                    ? '1 elegida'
+                    : '$count elegidas',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+            FilledButton.icon(
+              key: const Key('folder-pick-delete'),
+              style: FilledButton.styleFrom(
+                backgroundColor: scheme.error,
+                foregroundColor: scheme.onError,
+              ),
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: const Text('Borrar'),
+              onPressed: onDelete,
+            ),
+            const SizedBox(width: 4),
+            TextButton(onPressed: onCancel, child: const Text('Listo')),
+          ],
         ),
       ),
     );

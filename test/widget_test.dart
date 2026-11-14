@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
@@ -724,9 +725,71 @@ void main() {
     expect(settings.hasKey('claude'), isTrue);
     await tester.tap(find.text('Borrar'));
     await tester.pumpAndSettle();
+    // Pide la huella o el bloqueo del teléfono: si no se confirma, queda.
+    var allow = false;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('recordame/identidad'),
+      (call) async => allow,
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('recordame/identidad'),
+        null,
+      ),
+    );
+    await tester.tap(find.text('Sí, borrar'));
+    await tester.pumpAndSettle();
+    expect(settings.hasKey('claude'), isTrue);
+    expect(find.text('No se borró la clave.'), findsOneWidget);
+    allow = true;
+    await tester.tap(find.text('Borrar'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Sí, borrar'));
     await tester.pumpAndSettle();
     expect(settings.hasKey('claude'), isFalse);
+  });
+
+  testWidgets('Listado: elegir varios y borrarlos juntos, con un Deshacer', (
+    tester,
+  ) async {
+    final due = DateTime.now().add(const Duration(days: 1));
+    final repo = await pumpApp(tester, [
+      Reminder(title: 'Uno', dueAt: due),
+      Reminder(title: 'Dos', dueAt: due),
+      Reminder(title: 'Tres', dueAt: due),
+    ]);
+    await tester.tap(find.text('Listado'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Todos (').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('pick-many')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Uno'));
+    await tester.tap(find.text('Dos'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 elegidos'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('pick-delete')));
+    await tester.pumpAndSettle();
+    expect((await repo.watchAll().first).map((r) => r.title), ['Tres']);
+    expect(find.text('Borrados: 2'), findsOneWidget);
+    await tester.tap(find.text('Deshacer'));
+    await tester.pumpAndSettle();
+    expect((await repo.watchAll().first).length, 3);
+  });
+
+  testWidgets('arriba, fuera del Chat: micrófono (sin "Nuevo")', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    expect(find.byKey(const Key('top-mic')), findsNothing);
+    await tester.tap(find.text('Almanaque'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nuevo'), findsNothing);
+    expect(find.byKey(const Key('top-mic')), findsOneWidget);
+    // Sin IA, abre la carga a mano.
+    await tester.tap(find.byKey(const Key('top-mic')));
+    await tester.pumpAndSettle();
+    expect(find.text('Guardar'), findsWidgets);
   });
 }
 

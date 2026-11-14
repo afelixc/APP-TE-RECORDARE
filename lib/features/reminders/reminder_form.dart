@@ -176,6 +176,11 @@ class _ReminderFormState extends State<ReminderForm> {
             controller: _title,
             autofocus: widget.initial == null,
             textCapitalization: TextCapitalization.sentences,
+            // Los largos se ven enteros (crece hasta 4 renglones): antes se
+            // veían solo las primeras letras (pedido del usuario).
+            minLines: 1,
+            maxLines: 4,
+            textInputAction: TextInputAction.done,
             decoration: const InputDecoration(
               labelText: 'Qué',
               hintText: 'Ej: Lavar el auto',
@@ -331,20 +336,33 @@ class _ReminderFormState extends State<ReminderForm> {
           const SizedBox(height: 12),
           Row(
             children: [
+              // Los dos del mismo tamaño y en un renglón (pedido del usuario:
+              // "Cancelar" se partía en dos).
               if (widget.onCancel != null) ...[
                 Expanded(
                   child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(46),
+                    ),
                     onPressed: widget.onCancel,
-                    child: const Text('Cancelar'),
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Cancelar', maxLines: 1),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
               ],
               Expanded(
-                flex: 2,
                 child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                  ),
                   onPressed: _submit,
-                  child: Text(widget.submitLabel),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(widget.submitLabel, maxLines: 1),
+                  ),
                 ),
               ),
             ],

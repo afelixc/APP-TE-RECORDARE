@@ -18,7 +18,9 @@ class BackupSection extends StatefulWidget {
 }
 
 class _BackupSectionState extends State<BackupSection> {
-  bool _busy = false;
+  /// Trabajando (se ve también en las pantallas de adentro).
+  final _busyN = ValueNotifier(false);
+  bool get _busy => _busyN.value;
 
   AppSettings get _settings => widget.backup.settings;
 
@@ -31,6 +33,7 @@ class _BackupSectionState extends State<BackupSection> {
   @override
   void dispose() {
     _settings.removeListener(_changed);
+    _busyN.dispose();
     super.dispose();
   }
 
@@ -53,7 +56,7 @@ class _BackupSectionState extends State<BackupSection> {
 
   Future<void> _run(Future<void> Function() action) async {
     if (_busy) return;
-    setState(() => _busy = true);
+    _busyN.value = true;
     try {
       await action();
     } on BackupException catch (e) {
@@ -66,7 +69,7 @@ class _BackupSectionState extends State<BackupSection> {
     } catch (_) {
       _say('Algo salió mal. Probá de nuevo.', error: true);
     } finally {
-      if (mounted) setState(() => _busy = false);
+      _busyN.value = false;
     }
   }
 
@@ -145,8 +148,74 @@ class _BackupSectionState extends State<BackupSection> {
     });
   }
 
+  /// Abre "Guardar copia" o "Recuperar copia" en su pantalla, con todo el
+  /// detalle (pedido del usuario: afuera, dos recuadros iguales).
+  void _open(String title, Widget Function(BuildContext) body) =>
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: Text(title)),
+            body: ListenableBuilder(
+              listenable: Listenable.merge([_settings, _busyN]),
+              builder: (context, _) => ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  body(context),
+                  if (_busy) ...[
+                    const SizedBox(height: 12),
+                    const LinearProgressIndicator(),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
+    final s = _settings;
+    final has = s.backupUri != null;
+    final hint = Theme.of(context).textTheme.bodySmall
+        ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingsMenuItem(
+          key: const Key('backup-save-tile'),
+          inPage: true,
+          icon: Icons.cloud_upload_outlined,
+          title: 'Guardar copia',
+          subtitle: !has
+              ? 'Todavía no hay copia: tocá para elegir dónde'
+              : s.backupError != null
+              ? 'La última copia falló: tocá para ver'
+              : s.backupLast == null
+              ? 'En ${s.backupName ?? 'tu carpeta'}'
+              : 'Al día ✓ · ${Fmt.when(s.backupLast!)}',
+          ok: has && s.backupError == null,
+          warn: s.backupError != null,
+          onTap: () => _open('Guardar copia', _saveBody),
+        ),
+        SettingsMenuItem(
+          key: const Key('backup-restore-tile'),
+          inPage: true,
+          icon: Icons.restore,
+          title: 'Recuperar copia',
+          subtitle: 'Para un teléfono nuevo o si reinstalaste',
+          onTap: () => _open('Recuperar copia', _restoreBody),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'La clave de la IA y el link privado del calendario no van en la '
+          'copia: quedan solo en este teléfono.',
+          style: hint,
+        ),
+      ],
+    );
+  }
+
+  Widget _saveBody(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final s = _settings;
@@ -156,81 +225,127 @@ class _BackupSectionState extends State<BackupSection> {
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 16,
+      spacing: 12,
       children: [
-        SettingsCard(
-          title: 'Guardar copia',
-          children: [
-            _Status(
-              has: has,
-              name: s.backupName,
-              last: s.backupLast,
-              error: s.backupError,
-            ),
-            if (!has) ...[
-              Text(
-                'Se guardan tus recordatorios, el chat y tus preferencias en '
-                'un archivo, en la carpeta que elijas. Te recomiendo Google '
-                'Drive: así no se pierde aunque se rompa el teléfono.',
-              ),
-              FilledButton.icon(
-                key: const Key('backup-choose'),
-                icon: const Icon(Icons.add_to_drive),
-                label: const Text('Elegir carpeta y guardar'),
-                onPressed: _busy ? null : _choose,
-              ),
-              Text(
-                'Se abre el selector de Android: tocá ☰ (arriba a la '
-                'izquierda), elegí "Drive", entrá a la carpeta que quieras y '
-                'tocá "Guardar".',
-                style: hint,
-              ),
-            ] else ...[
-              FilledButton.icon(
-                icon: const Icon(Icons.cloud_upload),
-                label: const Text('Guardar copia ahora'),
-                onPressed: _busy ? null : _saveNow,
-              ),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.drive_file_move_outline),
-                label: const Text('Cambiar dónde se guarda'),
-                onPressed: _busy ? null : _choose,
-              ),
-            ],
-          ],
+        _Status(
+          has: has,
+          name: s.backupName,
+          last: s.backupLast,
+          error: s.backupError,
         ),
-        SettingsCard(
-          title: 'Recuperar copia',
-          children: [
-            const Text(
-              'Para un teléfono nuevo o si reinstalaste la app: elegí el '
-              'archivo "Recordame-copia…" de tu Drive y vuelve todo.',
-            ),
-            OutlinedButton.icon(
-              key: const Key('backup-restore'),
-              icon: const Icon(Icons.restore),
-              label: const Text('Recuperar desde un archivo'),
-              onPressed: _busy ? null : _restore,
-            ),
-          ],
+        Text(
+          'Se guardan tus recordatorios, la libreta, el chat y tus '
+          'preferencias en un archivo, en la carpeta que elijas (te '
+          'recomiendo Google Drive: así no se pierde aunque se rompa el '
+          'teléfono). Se actualiza sola una vez por día al usar la app.',
+          style: hint,
         ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.lock_outline, size: 18, color: scheme.onSurfaceVariant),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'La clave de la IA no se guarda en la copia: queda solo en '
-                'este teléfono. Si recuperás en otro, cargala de nuevo.',
-                style: hint,
-              ),
-            ),
-          ],
-        ),
-        if (_busy) const LinearProgressIndicator(),
+        if (!has) ...[
+          _WideButton(
+            key: const Key('backup-choose'),
+            filled: true,
+            icon: Icons.add_to_drive,
+            label: 'Elegir carpeta y guardar',
+            onPressed: _busy ? null : _choose,
+          ),
+          Text(
+            'Se abre el selector de Android: tocá ☰ (arriba a la izquierda), '
+            'elegí "Drive", entrá a la carpeta que quieras y tocá "Guardar".',
+            style: hint,
+          ),
+        ] else ...[
+          _WideButton(
+            key: const Key('backup-now'),
+            filled: true,
+            icon: Icons.cloud_upload,
+            label: 'Guardar copia ahora',
+            onPressed: _busy ? null : _saveNow,
+          ),
+          _WideButton(
+            key: const Key('backup-change'),
+            icon: Icons.drive_file_move_outline,
+            label: 'Cambiar dónde se guarda',
+            onPressed: _busy ? null : _choose,
+          ),
+        ],
       ],
     );
+  }
+
+  Widget _restoreBody(BuildContext context) {
+    final theme = Theme.of(context);
+    final hint = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 12,
+      children: [
+        const Text(
+          'Para un teléfono nuevo o si reinstalaste la app: elegí el archivo '
+          '"Recordame-copia…" de tu Drive y vuelve todo.',
+        ),
+        Text(
+          'Antes de cambiar nada te pregunta: podés sumar lo de la copia a lo '
+          'que ya tenés (sin repetir) o reemplazar todo.',
+          style: hint,
+        ),
+        _WideButton(
+          key: const Key('backup-restore'),
+          icon: Icons.restore,
+          label: 'Recuperar desde un archivo',
+          onPressed: _busy ? null : _restore,
+        ),
+        Text(
+          'La clave de la IA no se guarda en la copia: si recuperás en otro '
+          'teléfono, cargala de nuevo.',
+          style: hint,
+        ),
+      ],
+    );
+  }
+}
+
+/// Botón a lo ancho, todos del mismo alto y con el texto en un renglón.
+class _WideButton extends StatelessWidget {
+  const _WideButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.filled = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 20),
+          const SizedBox(width: 8),
+          Text(label, maxLines: 1),
+        ],
+      ),
+    );
+    const size = Size.fromHeight(48);
+    return filled
+        ? FilledButton(
+            style: FilledButton.styleFrom(minimumSize: size),
+            onPressed: onPressed,
+            child: child,
+          )
+        : OutlinedButton(
+            style: OutlinedButton.styleFrom(minimumSize: size),
+            onPressed: onPressed,
+            child: child,
+          );
   }
 }
 
@@ -271,16 +386,15 @@ class _Status extends StatelessWidget {
         Icons.cloud_done,
         'Copia al día ✓',
         '${name ?? 'Recordame-copia'}'
-            '${last == null ? '' : '\nÚltima: ${Fmt.when(last!)}'}'
-            '\nSe actualiza sola una vez por día al usar la app.',
+            '${last == null ? '' : '\nÚltima: ${Fmt.when(last!)}'}',
       ),
     };
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: bg,
-        border: Border.all(color: color, width: 1.5),
-        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color, width: 1.2),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

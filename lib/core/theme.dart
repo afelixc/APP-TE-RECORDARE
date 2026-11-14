@@ -37,6 +37,17 @@ class AppTheme {
     colorScheme: scheme,
     useMaterial3: true,
     appBarTheme: const AppBarTheme(centerTitle: false),
+    // Carteles de abajo ("Borrado… Deshacer") chicos y flotando (pedido del
+    // usuario: ocupaban mucho).
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      contentTextStyle: TextStyle(
+        fontSize: 13.5,
+        color: scheme.onInverseSurface,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
