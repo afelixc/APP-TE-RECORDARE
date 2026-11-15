@@ -196,7 +196,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
                 ),
                 IconButton(
                   key: const Key('pick-many'),
-                  tooltip: 'Elegir varios (para borrar)',
+                  tooltip: 'Borrar varios',
                   icon: const Icon(Icons.checklist_rtl),
                   onPressed: () =>
                       setState(() => _picked = _picked == null ? {} : null),
@@ -297,7 +297,9 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 }
 
-/// Arriba, mientras se eligen varios: cuántos, Borrar y Listo.
+/// Arriba, mientras se eligen varios (pedido del usuario: antes decía
+/// "Listo" y no se entendía). Arriba "Borrar varios" con cuántos van
+/// elegidos; abajo Cancelar (chiquito) y Borrar, a la misma altura.
 class _PickBar extends StatelessWidget {
   const _PickBar({
     required this.count,
@@ -309,47 +311,112 @@ class _PickBar extends StatelessWidget {
   final VoidCallback onCancel;
   final VoidCallback? onDelete;
 
+  static const _buttonHeight = 40.0;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final red = scheme.error;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(10),
+    );
     return Container(
+      key: const Key('pick-bar'),
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
-        color: scheme.primaryContainer,
+        color: Color.alphaBlend(red.withValues(alpha: 0.07), scheme.surface),
+        border: Border.all(color: red.withValues(alpha: 0.55), width: 1.5),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Text(
-              count == 0
-                  ? 'Tocá los que querés borrar'
-                  : count == 1
-                  ? '1 elegido'
-                  : '$count elegidos',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: scheme.onPrimaryContainer,
+          Row(
+            children: [
+              Icon(Icons.checklist_rtl, color: red, size: 22),
+              const SizedBox(width: 8),
+              const Text(
+                'Borrar varios',
+                maxLines: 1,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
               ),
-            ),
+              const SizedBox(width: 10),
+              // Si no entra (letra grande), se achica solo esto.
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      count == 0
+                          ? 'Tocá los que querés borrar'
+                          : count == 1
+                          ? '1 elegido'
+                          : '$count elegidos',
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: count == 0 ? scheme.onSurfaceVariant : red,
+                        fontWeight: count == 0
+                            ? FontWeight.w500
+                            : FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          FilledButton.icon(
-            key: const Key('pick-delete'),
-            style: FilledButton.styleFrom(
-              backgroundColor: scheme.error,
-              foregroundColor: scheme.onError,
-              visualDensity: VisualDensity.compact,
-            ),
-            icon: const Icon(Icons.delete_outline, size: 18),
-            label: const Text('Borrar'),
-            onPressed: onDelete,
-          ),
-          const SizedBox(width: 4),
-          TextButton(
-            key: const Key('pick-cancel'),
-            onPressed: onCancel,
-            child: const Text('Listo'),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: _buttonHeight,
+                  child: OutlinedButton(
+                    key: const Key('pick-cancel'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      shape: shape,
+                    ),
+                    onPressed: onCancel,
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Cancelar', style: TextStyle(fontSize: 14)),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: SizedBox(
+                  height: _buttonHeight,
+                  child: FilledButton.icon(
+                    key: const Key('pick-delete'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: red,
+                      foregroundColor: scheme.onError,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      shape: shape,
+                    ),
+                    icon: const Icon(Icons.delete_outline, size: 20),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        count > 1 ? 'Borrar los $count' : 'Borrar',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    onPressed: onDelete,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

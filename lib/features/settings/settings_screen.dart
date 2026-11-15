@@ -452,8 +452,8 @@ class _VersionFooter extends StatelessWidget {
       future: PackageInfo.fromPlatform(),
       builder: (context, snapshot) => Text(
         snapshot.hasData
-            ? 'Recordame · versión ${snapshot.data!.version}'
-            : 'Recordame',
+            ? 'Te Recordaré · versión ${snapshot.data!.version}'
+            : 'Te Recordaré',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.bodySmall,
       ),

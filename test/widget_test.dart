@@ -806,6 +806,13 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('pick-many')));
     await tester.pumpAndSettle();
+    expect(find.text('Borrar varios'), findsOneWidget);
+    expect(find.text('Listo'), findsNothing);
+    // Cancelar y Borrar a la misma altura.
+    expect(
+      tester.getSize(find.byKey(const Key('pick-cancel'))).height,
+      tester.getSize(find.byKey(const Key('pick-delete'))).height,
+    );
     await tester.tap(find.text('Uno'));
     await tester.tap(find.text('Dos'));
     await tester.pumpAndSettle();

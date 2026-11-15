@@ -57,7 +57,7 @@ class RecordameApp extends StatelessWidget {
       child: ListenableBuilder(
         listenable: settings,
         builder: (context, _) => MaterialApp(
-          title: 'Recordame',
+          title: 'Te Recordaré',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(settings.dayColors),
           darkTheme: AppTheme.dark(settings.nightColors),
