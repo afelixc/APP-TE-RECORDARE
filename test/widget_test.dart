@@ -627,7 +627,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('notebook-fab')));
     await tester.pumpAndSettle();
-    expect(find.text('Anotar en la libreta'), findsOneWidget);
+    expect(find.text('Anotar en: General'), findsOneWidget);
+    expect(find.byKey(const Key('quick-cancel')), findsOneWidget);
     await tester.enterText(
       find.byKey(const Key('notebook-input')),
       'Comprar filamento',
@@ -637,6 +638,47 @@ void main() {
     await tester.pumpAndSettle();
     expect(settings.folders.single.items.single.text, 'Comprar filamento');
     expect(find.text('1 pendiente'), findsWidgets);
+  });
+
+  testWidgets('libreta flotante: carpetas en botones parejos que se deslizan', (
+    tester,
+  ) async {
+    final settings = AppSettings(MemorySettingsStore(), MemoryKeyStore());
+    for (var i = 1; i <= 8; i++) {
+      await settings.addFolder('Carpeta $i', 0xFFC98A00);
+    }
+    await tester.pumpWidget(
+      RecordameApp(reminders: MemoryReminderRepository(), settings: settings),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Almanaque'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('notebook-fab')));
+    await tester.pumpAndSettle();
+    expect(find.text('Anotar en: Carpeta 1'), findsOneWidget);
+    // Los botones de arriba miden lo mismo.
+    expect(
+      tester.getSize(find.byKey(const Key('quick-cancel'))),
+      tester.getSize(find.byKey(const Key('quick-open-notebook'))),
+    );
+    // Se ven 6; la 7 y la 8 aparecen deslizando adentro del recuadro.
+    expect(find.byKey(const Key('quick-folder-7')), findsNothing);
+    await tester.drag(
+      find.byKey(const Key('quick-folder-4')),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('quick-folder-7')));
+    await tester.pumpAndSettle();
+    expect(find.text('Anotar en: Carpeta 8'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('notebook-input')), 'Pintar');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('notebook-send')));
+    await tester.pumpAndSettle();
+    expect(settings.folders.last.items.single.text, 'Pintar');
+    await tester.tap(find.byKey(const Key('quick-cancel')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('quick-cancel')), findsNothing);
   });
 
   testWidgets(

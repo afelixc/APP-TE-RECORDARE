@@ -893,8 +893,9 @@ class _ListSample extends StatelessWidget {
   }
 }
 
-/// Dibujo del ícono de Recordame (libreta con campanita) con los colores
-/// de una combinación. Es el mismo dibujo que `tool/generar_iconos.py`.
+/// El ícono de Recordame (lapicera, almanaque y tilde) en una de sus
+/// combinaciones. Son los mismos dibujos del teléfono, generados con
+/// `tool/generar_iconos.py` en `assets/iconos/<id>.png`.
 class AppIconPreview extends StatelessWidget {
   const AppIconPreview(this.icon, {super.key, this.size = 48});
 
@@ -911,48 +912,20 @@ class AppIconPreview extends StatelessWidget {
           ? Border.all(color: const Color(0xFFD7DBE5))
           : null,
     ),
-    child: CustomPaint(painter: _LogoPainter(icon)),
+    child: Image.asset(
+      'assets/iconos/${icon.id}.png',
+      width: size,
+      height: size,
+      filterQuality: FilterQuality.medium,
+      // Si faltara el dibujo, al menos el color de fondo.
+      errorBuilder: (_, _, _) => DecoratedBox(
+        decoration: BoxDecoration(
+          color: icon.background,
+          borderRadius: BorderRadius.circular(size * 0.22),
+        ),
+      ),
+    ),
   );
-}
-
-class _LogoPainter extends CustomPainter {
-  _LogoPainter(this.icon);
-
-  final AppIcon icon;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final f = size.width / 108;
-    canvas.scale(f);
-    final bg = icon.background;
-    final book = icon.bell;
-    // Espiral blanca (en el de fondo blanco, del color de la libreta);
-    // campanita blanca salvo que la libreta sea muy clara.
-    final ring = bg.computeLuminance() > 0.8 ? book : Colors.white;
-    final det = book.computeLuminance() > 0.5 ? bg : Colors.white;
-    RRect box(double x, double y, double w, double h, double r) =>
-        RRect.fromRectAndRadius(Rect.fromLTWH(x, y, w, h), Radius.circular(r));
-    canvas.drawRRect(box(0, 0, 108, 108, 108 * 0.22), Paint()..color = bg);
-    canvas.drawRRect(box(28, 20, 54, 70, 8), Paint()..color = book);
-    for (final y in [30.0, 42.0, 54.0, 66.0, 78.0]) {
-      canvas.drawRRect(box(22, y - 3, 14, 6, 3), Paint()..color = ring);
-    }
-    final bell = Path()
-      ..moveTo(57, 36)
-      ..cubicTo(49, 36, 44, 42, 44, 50)
-      ..lineTo(44, 57)
-      ..lineTo(40, 63)
-      ..lineTo(74, 63)
-      ..lineTo(70, 57)
-      ..lineTo(70, 50)
-      ..cubicTo(70, 42, 65, 36, 57, 36)
-      ..close();
-    canvas.drawPath(bell, Paint()..color = det);
-    canvas.drawCircle(const Offset(57, 68), 4.5, Paint()..color = det);
-  }
-
-  @override
-  bool shouldRepaint(_LogoPainter old) => old.icon != icon;
 }
 
 /// Un casillero de "Día y noche": dibujito arriba y texto centrado.

@@ -38,8 +38,8 @@ class SoftColor {
   Color border(bool isNight) => isNight ? nightBorder : dayBorder;
 }
 
-/// Combinación del ícono del teléfono (libreta con campanita): [background]
-/// es el fondo y [bell] la libreta. Cada una tiene su `activity-alias` en el
+/// Combinación del ícono del teléfono (lapicera, almanaque y tilde): [background]
+/// es el fondo y [bell] el dibujo. Cada una tiene su `activity-alias` en el
 /// AndroidManifest y su `ic_launcher_<id>`, generados con
 /// `tool/generar_iconos.py`.
 class AppIcon {
@@ -149,7 +149,7 @@ const softColors = <SoftColor>[
 ];
 
 const appIcons = <AppIcon>[
-  AppIcon('clasico', 'Clásico', Color(0xFF2C3A66), Color(0xFFE9A21F)),
+  AppIcon('clasico', 'Clásico', Color(0xFF1C2D4B), Color(0xFFD9B77E)),
   AppIcon('rojo', 'Rojo', Color(0xFFC62828), Color(0xFFFFFFFF)),
   AppIcon('naranja', 'Naranja', Color(0xFFE8A33D), Color(0xFF2B3A67)),
   AppIcon('verde', 'Verde', Color(0xFF2E6B4F), Color(0xFFF5D76E)),
