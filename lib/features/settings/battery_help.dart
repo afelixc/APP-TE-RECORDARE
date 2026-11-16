@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../calendar_sync/device_calendar.dart';
 import 'settings_screen.dart';
 
-/// Abre el ajuste de Android para que no frene a Recordame en segundo plano.
+/// Abre el ajuste de Android para que no frene a Te Recordaré en segundo plano.
 Future<void> openBatterySettings() async {
   try {
     await const AndroidIntent(
@@ -29,7 +29,7 @@ class BatteryHelpPage extends StatefulWidget {
     this.check = AndroidDeviceCalendar.batteryFree,
   });
 
-  /// Si Android ya deja a Recordame sin restricciones.
+  /// Si Android ya deja a Te Recordaré sin restricciones.
   final Future<bool> Function() check;
 
   @override
@@ -75,13 +75,13 @@ class _BatteryHelpPageState extends State<BatteryHelpPage>
         Colors.green.shade50,
         Icons.battery_full,
         'Listo ✓ Sin restricciones',
-        'Android deja a Recordame trabajar con la app cerrada.',
+        'Android deja a Te Recordaré trabajar con la app cerrada.',
       ),
       false => (
         const Color(0xFF6B5418),
         const Color(0xFFFFF4D6),
         Icons.battery_alert,
-        'Android puede frenar a Recordame',
+        'Android puede frenar a Te Recordaré',
         'Para que no lo haga, tocá el botón de abajo.',
       ),
       null => (
@@ -133,16 +133,16 @@ class _BatteryHelpPageState extends State<BatteryHelpPage>
             children: [
               Text(
                 'Para ahorrar batería, muchos teléfonos "duermen" a las apps '
-                'que no estás usando. Si duermen a Recordame:',
+                'que no estás usando. Si duermen a Te Recordaré:',
               ),
               _Bullet('Los avisos pueden llegar tarde o no llegar.'),
               _Bullet(
                 'No se sincroniza con Google Calendar con la app cerrada: lo '
                 'que anotes desde la compu no te avisa hasta que abras '
-                'Recordame.',
+                'Te Recordaré.',
               ),
               Text(
-                'Dejándolo "sin restricciones", Recordame se despierta solo un '
+                'Dejándolo "sin restricciones", Te Recordaré se despierta solo un '
                 'momento cuando hace falta (un aviso o un cambio en el '
                 'calendario). Casi no gasta batería.',
               ),
@@ -158,7 +158,7 @@ class _BatteryHelpPageState extends State<BatteryHelpPage>
           const SizedBox(height: 6),
           Text(
             'Si aparece un cartel, tocá "Permitir". Si se abre una lista, '
-            'buscá Recordame y elegí "Sin restricciones" o "No optimizar".',
+            'buscá Te Recordaré y elegí "Sin restricciones" o "No optimizar".',
             style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),
@@ -190,15 +190,15 @@ const _brands = [
   (
     'Samsung',
     [
-      'Ajustes → Aplicaciones → Recordame → Batería → "Sin restricciones".',
+      'Ajustes → Aplicaciones → Te Recordaré → Batería → "Sin restricciones".',
       'Ajustes → Batería → Límites de uso en segundo plano: fijate que '
-          'Recordame NO esté en "Aplicaciones en suspensión".',
+          'Te Recordaré NO esté en "Aplicaciones en suspensión".',
     ],
   ),
   (
     'Xiaomi, Redmi o POCO',
     [
-      'Ajustes → Aplicaciones → Administrar aplicaciones → Recordame → '
+      'Ajustes → Aplicaciones → Administrar aplicaciones → Te Recordaré → '
           'Ahorro de batería → "Sin restricciones".',
       'En la misma pantalla, prendé "Inicio automático".',
     ],
@@ -206,21 +206,21 @@ const _brands = [
   (
     'Motorola',
     [
-      'Ajustes → Aplicaciones → Recordame → Batería → "Sin restricciones" '
+      'Ajustes → Aplicaciones → Te Recordaré → Batería → "Sin restricciones" '
           '(o "Uso de batería en segundo plano": permitir).',
     ],
   ),
   (
     'Huawei u Honor',
     [
-      'Ajustes → Batería → Inicio de aplicaciones → Recordame: apagá '
+      'Ajustes → Batería → Inicio de aplicaciones → Te Recordaré: apagá '
           '"Administrar automáticamente" y dejá prendidas las tres opciones.',
     ],
   ),
   (
     'Otra marca',
     [
-      'Ajustes → Aplicaciones → Recordame → Batería: elegí "Sin '
+      'Ajustes → Aplicaciones → Te Recordaré → Batería: elegí "Sin '
           'restricciones", "No optimizar" o parecido.',
     ],
   ),

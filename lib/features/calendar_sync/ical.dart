@@ -4,7 +4,7 @@ import 'device_calendar.dart';
 
 /// El "link privado" de un calendario de Google (Configuración del
 /// calendario → Integrar el calendario → Dirección secreta en formato iCal).
-/// Recordame lo lee directo de Google, sin pasar por el teléfono: sirve
+/// Te Recordaré lo lee directo de Google, sin pasar por el teléfono: sirve
 /// cuando el teléfono no recibe los eventos (pedido del usuario). Solo lee.
 
 /// Arregla lo pegado: saca espacios y pasa `webcal://` a `https://`.

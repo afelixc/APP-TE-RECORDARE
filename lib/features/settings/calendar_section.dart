@@ -77,7 +77,7 @@ class _CalendarSectionState extends State<CalendarSection> {
     } else {
       _say(
         'Sin el permiso no puedo usar el calendario. Si no te aparece el '
-        'cartel, dalo en Ajustes del teléfono → Apps → Recordame → Permisos.',
+        'cartel, dalo en Ajustes del teléfono → Apps → Te Recordaré → Permisos.',
       );
     }
   }
@@ -151,7 +151,7 @@ class _CalendarSectionState extends State<CalendarSection> {
         content: Text.rich(
           TextSpan(
             children: [
-              const TextSpan(text: 'Desde ahora, lo que cargues en Recordame '),
+              const TextSpan(text: 'Desde ahora, lo que cargues en Te Recordaré '),
               const TextSpan(text: 'va a aparecer en:\n'),
               TextSpan(
                 text: name,
@@ -321,12 +321,12 @@ class _CalendarSectionState extends State<CalendarSection> {
           events.isEmpty
               ? 'Leí tu calendario desde Google, pero no hay nada anotado '
                     'para el próximo año. Lo que anotes de ahora en más va a '
-                    'llegar a Recordame.'
+                    'llegar a Te Recordaré.'
               : 'Leí tu calendario desde Google: hay ${events.length} '
                     '${events.length == 1 ? 'evento' : 'eventos'} de acá a '
                     'un año (por ejemplo "${events.first.title}", '
                     '${Fmt.when(events.first.start)}).\n\n'
-                    '¿Traigo a Recordame lo que ya está, o solo lo nuevo que '
+                    '¿Traigo a Te Recordaré lo que ya está, o solo lo nuevo que '
                     'anotes de ahora en más?',
         ),
         actions: [
@@ -401,7 +401,7 @@ class _CalendarSectionState extends State<CalendarSection> {
       builder: (context) => AlertDialog(
         title: const Text('¿Quitar el link?'),
         content: const Text(
-          'Recordame deja de leer tu calendario desde Google. Lo que ya '
+          'Te Recordaré deja de leer tu calendario desde Google. Lo que ya '
           'trajo queda como está.',
         ),
         actions: [
@@ -432,7 +432,7 @@ class _CalendarSectionState extends State<CalendarSection> {
           title: Text('¿Traer lo nuevo de "$name"?'),
           content: const Text(
             'Desde ahora, lo que se anote en ese calendario te va a llegar a '
-            'Recordame, aunque la app esté cerrada.\n\nLo que ya está no lo '
+            'Te Recordaré, aunque la app esté cerrada.\n\nLo que ya está no lo '
             'traigo (para eso usá el 3).',
           ),
           actions: [
@@ -460,7 +460,7 @@ class _CalendarSectionState extends State<CalendarSection> {
       await widget.sync.startAuto();
       if (mounted) {
         _say(
-          'Listo ✓ Lo nuevo que anotes en el calendario va a llegar a Recordame.',
+          'Listo ✓ Lo nuevo que anotes en el calendario va a llegar a Te Recordaré.',
         );
       }
     } else {
@@ -481,7 +481,7 @@ class _CalendarSectionState extends State<CalendarSection> {
       _busy = false;
       _checked.clear();
     });
-    _say('Listo ✓ Agregué $added a Recordame. Te aviso a la hora de cada uno.');
+    _say('Listo ✓ Agregué $added a Te Recordaré. Te aviso a la hora de cada uno.');
   }
 
   @override
@@ -501,7 +501,7 @@ class _CalendarSectionState extends State<CalendarSection> {
         title: 'Permiso de calendario',
         children: [
           const Text(
-            'Para usar tu Google Calendar, Recordame necesita permiso para '
+            'Para usar tu Google Calendar, Te Recordaré necesita permiso para '
             'ver y anotar en los calendarios del teléfono. Se usa el '
             'calendario que ya tenés: no se crea ninguno nuevo.',
           ),
@@ -529,7 +529,7 @@ class _CalendarSectionState extends State<CalendarSection> {
           color: Colors.green.shade800,
           background: Colors.green.shade50,
           text:
-              'Permiso de calendario ✓ · Recordame puede ver y anotar en '
+              'Permiso de calendario ✓ · Te Recordaré puede ver y anotar en '
               'tus calendarios',
         ),
         SettingsCard(
@@ -568,7 +568,7 @@ class _CalendarSectionState extends State<CalendarSection> {
           ],
         ),
         SettingsCard(
-          title: '2 · De Recordame → al calendario',
+          title: '2 · De Te Recordaré → al calendario',
           children: [
             SwitchListTile(
               dense: true,
@@ -581,7 +581,7 @@ class _CalendarSectionState extends State<CalendarSection> {
                           'Podés traer de él (3 y 4), pero para enviar elegí '
                           'otro en el 1.'
                     : s.calendarSend
-                    ? 'Prendido: lo que cargás, cambiás o borrás en Recordame '
+                    ? 'Prendido: lo que cargás, cambiás o borrás en Te Recordaré '
                           'aparece en ${s.calendarName ?? 'tu calendario'}.'
                     : 'Apagado: el calendario no se toca.',
               ),
@@ -631,7 +631,7 @@ class _CalendarSectionState extends State<CalendarSection> {
           ],
         ),
         SettingsCard(
-          title: '4 · Del calendario → a Recordame, siempre',
+          title: '4 · Del calendario → a Te Recordaré, siempre',
           children: [
             SwitchListTile(
               dense: true,
@@ -642,7 +642,7 @@ class _CalendarSectionState extends State<CalendarSection> {
                 s.calendarAuto
                     ? 'Prendido: lo nuevo que anotes en '
                           '${s.calendarName ?? 'tu calendario'}, aunque sea '
-                          'desde la compu, aparece en Recordame y te avisa, '
+                          'desde la compu, aparece en Te Recordaré y te avisa, '
                           'aunque la app esté cerrada.'
                     : 'Apagado: solo se trae lo que elijas arriba.',
               ),
@@ -675,7 +675,7 @@ class _CalendarSectionState extends State<CalendarSection> {
             if (s.icalUrl == null) ...[
               Text(
                 'Si lo que anotás en Google Calendar no llega al teléfono, '
-                'Recordame lo puede leer directo de Google con el link '
+                'Te Recordaré lo puede leer directo de Google con el link '
                 'privado de tu calendario. Solo lee: no anota nada en Google.',
                 style: hint,
               ),
@@ -744,7 +744,7 @@ class _CalendarSectionState extends State<CalendarSection> {
           ),
           child: Text(
             'Para el segundo paso: qué pasa en el calendario cuando marcás '
-            'algo como hecho en Recordame (por ahora no se toca).',
+            'algo como hecho en Te Recordaré (por ahora no se toca).',
             style: hint,
           ),
         ),
@@ -868,7 +868,7 @@ class _EventRow extends StatelessWidget {
           ),
           subtitle: Text(
             have
-                ? '✓ Ya está en Recordame'
+                ? '✓ Ya está en Te Recordaré'
                 : e.repeats
                 ? '$when · se repite (se trae esta vez)'
                 : when,
@@ -948,7 +948,7 @@ class _LinkButton extends StatelessWidget {
   );
 }
 
-/// Si Android puede frenar a Recordame, lo avisa con un botón para arreglarlo.
+/// Si Android puede frenar a Te Recordaré, lo avisa con un botón para arreglarlo.
 class _BatteryHint extends StatefulWidget {
   const _BatteryHint();
 
@@ -999,7 +999,7 @@ class _BatteryHintState extends State<_BatteryHint>
         children: [
           const Text(
             'Para que funcione con la app cerrada, el teléfono no tiene que '
-            'frenar a Recordame para ahorrar batería.',
+            'frenar a Te Recordaré para ahorrar batería.',
             style: TextStyle(color: color, fontWeight: FontWeight.w600),
           ),
           TextButton.icon(
@@ -1234,7 +1234,7 @@ class _MissingHelp extends StatelessWidget {
         children: [
           Text('¿No está el que buscás?', style: theme.textTheme.titleSmall),
           const Text(
-            'Recordame ve los calendarios que el teléfono tiene guardados. '
+            'Te Recordaré ve los calendarios que el teléfono tiene guardados. '
             'Si uno se ve en Google Calendar pero no acá:',
           ),
           const Text(

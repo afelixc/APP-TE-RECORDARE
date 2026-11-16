@@ -291,10 +291,10 @@ class AppSettings extends ChangeNotifier {
   String? calendarId;
   String? calendarName;
 
-  /// De Recordame → al calendario.
+  /// De Te Recordaré → al calendario.
   bool calendarSend = false;
 
-  /// Del calendario → a Recordame, automático.
+  /// Del calendario → a Te Recordaré, automático.
   bool calendarAuto = false;
 
   /// Eventos que ya se vieron (para traer solo los nuevos).
@@ -359,7 +359,7 @@ class AppSettings extends ChangeNotifier {
     await _saveKnown();
   }
 
-  /// Link privado (iCal) de un calendario de Google: Recordame lo lee
+  /// Link privado (iCal) de un calendario de Google: Te Recordaré lo lee
   /// directo de Google. Se guarda cifrado, como las claves (es secreto) y
   /// no va en la copia.
   String? icalUrl;

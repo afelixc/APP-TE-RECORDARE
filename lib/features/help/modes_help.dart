@@ -76,7 +76,7 @@ class ModesHelpView extends StatelessWidget {
       controller: scroll,
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
       children: [
-        Text('Dos formas de usar Recordame', style: theme.textTheme.titleLarge),
+        Text('Dos formas de usar Te Recordaré', style: theme.textTheme.titleLarge),
         h('Gratis'),
         p(
           'Cargás cada recordatorio con un formulario: qué, día, hora y si se repite. '
@@ -94,7 +94,7 @@ class ModesHelpView extends StatelessWidget {
           'La "clave de API" es como una contraseña que le dice a la empresa a qué cuenta cobrarle.',
         ),
         p(
-          'Recordame no cobra nada ni se queda con tu clave: se guarda cifrada solo en tu teléfono.',
+          'Te Recordaré no cobra nada ni se queda con tu clave: se guarda cifrada solo en tu teléfono.',
         ),
         p(
           'Las notificaciones, el listado y el almanaque funcionan sin internet y no gastan saldo. '
@@ -103,7 +103,7 @@ class ModesHelpView extends StatelessWidget {
         h('Ojo: tu plan de Claude no sirve para esto'),
         p(
           'La suscripción de Claude (claude.ai, la app para chatear) es una cosa y la API es otra, con saldo aparte. '
-          'Para Recordame necesitás saldo cargado en la API.',
+          'Para Te Recordaré necesitás saldo cargado en la API.',
         ),
         h('¿Cuánto sale?'),
         p(
@@ -121,7 +121,7 @@ class ModesHelpView extends StatelessWidget {
         ),
         step(
           3,
-          'En "API Keys", tocá "Create Key" y ponele de nombre "Recordame".',
+          'En "API Keys", tocá "Create Key" y ponele de nombre "Te Recordaré".',
         ),
         step(
           4,
@@ -129,7 +129,7 @@ class ModesHelpView extends StatelessWidget {
         ),
         step(
           5,
-          'En Recordame: Configuración → Con IA → pegá la clave → "Guardar y probar".',
+          'En Te Recordaré: Configuración → Con IA → pegá la clave → "Guardar y probar".',
         ),
         Wrap(
           spacing: 8,

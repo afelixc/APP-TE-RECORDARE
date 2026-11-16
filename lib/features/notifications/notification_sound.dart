@@ -13,7 +13,7 @@ const _package = 'com.afelixc.recordame';
 
 String _raw(String name) => 'android.resource://$_package/raw/$name';
 
-/// Sonidos que vienen con Recordame (`android/app/src/main/res/raw`).
+/// Sonidos que vienen con Te Recordaré (`android/app/src/main/res/raw`).
 final builtInSounds = [
   const SoundChoice('Del teléfono (el de siempre)', null),
   SoundChoice('Campanita', _raw('campanita')),

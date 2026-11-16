@@ -42,7 +42,7 @@ class ClaudeProvider implements AiProvider {
   List<String> get guideSteps => const [
     'Entrá a console.anthropic.com y creá una cuenta (podés usar tu correo de Google).',
     'Andá a "Billing" (Facturación), agregá una tarjeta y cargá saldo. Con el mínimo alcanza para muchísimos recordatorios.',
-    'Andá a "API Keys" y tocá "Create Key". Ponele un nombre, por ejemplo "Recordame".',
+    'Andá a "API Keys" y tocá "Create Key". Ponele un nombre, por ejemplo "Te Recordaré".',
     'Copiá la clave (empieza con sk-ant-). Se muestra una sola vez.',
     'Pegala acá abajo, tocá "Guardar" y después "Probar clave".',
   ];

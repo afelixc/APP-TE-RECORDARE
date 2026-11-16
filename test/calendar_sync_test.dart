@@ -345,7 +345,7 @@ void main() {
       MaterialApp(home: BatteryHelpPage(check: () async => free)),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Android puede frenar a Recordame'), findsOneWidget);
+    expect(find.text('Android puede frenar a Te Recordaré'), findsOneWidget);
     expect(
       find.textContaining('Google Calendar con la app cerrada'),
       findsOneWidget,
@@ -399,7 +399,7 @@ void main() {
       await tester.pumpAndSettle();
       final titles = (await inner.watchAll().first).map((r) => r.title);
       expect(titles, containsAll(['Turno', 'Asado']));
-      expect(find.text('Ya está en Recordame'), findsNWidgets(2));
+      expect(find.text('Ya está en Te Recordaré'), findsNWidgets(2));
     },
   );
 
@@ -423,7 +423,7 @@ void main() {
   });
 
   test(
-    'lo borrado en el calendario del teléfono se borra de Recordame',
+    'lo borrado en el calendario del teléfono se borra de Te Recordaré',
     () async {
       final (sync, repo, cal, inner) = await make();
       await sync.choose(

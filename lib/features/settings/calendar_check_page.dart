@@ -7,7 +7,7 @@ import '../calendar_sync/calendar_sync.dart';
 import '../calendar_sync/device_calendar.dart';
 import '../calendar_sync/ical.dart';
 
-/// Lo que el teléfono tiene en cada calendario y si ya está en Recordame.
+/// Lo que el teléfono tiene en cada calendario y si ya está en Te Recordaré.
 /// Sirve para ver por qué algo de Google Calendar no llegó (pedido del
 /// usuario): ya estaba antes de prender el 4, está en otro calendario o el
 /// teléfono no lo tiene.
@@ -26,7 +26,7 @@ class CalendarCheckPage extends StatefulWidget {
 
 /// Cómo está un evento del calendario elegido.
 enum EventState {
-  /// Ya está en Recordame.
+  /// Ya está en Te Recordaré.
   here,
 
   /// Ya estaba en el calendario cuando se prendió el 4: no se trae solo.
@@ -115,7 +115,7 @@ class _CalendarCheckPageState extends State<CalendarCheckPage> {
     }
   }
 
-  /// Trae a Recordame los del calendario elegido que todavía no están.
+  /// Trae a Te Recordaré los del calendario elegido que todavía no están.
   Future<void> _bringMissing(List<CalendarEvent> missing) async {
     final repo = AppScope.of(context).reminders;
     setState(() => _busy = true);
@@ -125,8 +125,8 @@ class _CalendarCheckPageState extends State<CalendarCheckPage> {
     setState(() {
       _busy = false;
       _message = added == 1
-          ? 'Traje 1 a Recordame.'
-          : 'Traje $added a Recordame.';
+          ? 'Traje 1 a Te Recordaré.'
+          : 'Traje $added a Te Recordaré.';
     });
     await _load();
   }
@@ -162,7 +162,7 @@ class _CalendarCheckPageState extends State<CalendarCheckPage> {
               children: [
                 Text(
                   'Esto es lo que el teléfono tiene en sus calendarios desde '
-                  'ayer y por 60 días, que es lo único que Recordame puede '
+                  'ayer y por 60 días, que es lo único que Te Recordaré puede '
                   'leer. Si algo está en Google Calendar pero no aparece '
                   'acá, el teléfono no lo está recibiendo.',
                   style: hint,
@@ -409,7 +409,7 @@ class _EventTile extends StatelessWidget {
       EventState.here => (
         Icons.check_circle,
         Colors.green.shade700,
-        'Ya está en Recordame',
+        'Ya está en Te Recordaré',
       ),
       EventState.before => (
         Icons.history,

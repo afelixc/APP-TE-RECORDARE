@@ -20,7 +20,7 @@ String? rruleFor(Reminder r) {
   };
 }
 
-/// Si un evento del calendario ya está en Recordame.
+/// Si un evento del calendario ya está en Te Recordaré.
 bool alreadyHave(CalendarEvent e, List<Reminder> reminders) => reminders.any(
   (r) =>
       (r.calendarEventId?.split(',').contains(e.id) ?? false) ||
@@ -38,7 +38,7 @@ typedef IcalReader = Future<List<CalendarEvent>> Function(
   DateTime to,
 );
 
-/// Une Recordame con el calendario que ya está en el teléfono.
+/// Une Te Recordaré con el calendario que ya está en el teléfono.
 class CalendarSync {
   CalendarSync({
     required this.calendar,
@@ -80,7 +80,7 @@ class CalendarSync {
     return wasOn;
   }
 
-  // --- De Recordame → al calendario ---
+  // --- De Te Recordaré → al calendario ---
 
   /// Crea o actualiza el evento; devuelve el id (o ids) para guardar.
   Future<String?> push(Reminder r) async {
@@ -132,7 +132,7 @@ class CalendarSync {
     return sent;
   }
 
-  // --- Del calendario → a Recordame ---
+  // --- Del calendario → a Te Recordaré ---
 
   static const autoWindow = Duration(days: 365);
 
@@ -141,7 +141,7 @@ class CalendarSync {
     return calendar.events(settings.calendarId!, now, now.add(window));
   }
 
-  /// Agrega a Recordame los eventos elegidos.
+  /// Agrega a Te Recordaré los eventos elegidos.
   Future<int> import(
     Iterable<CalendarEvent> events,
     ReminderRepository repo,
@@ -235,7 +235,7 @@ class CalendarSync {
   }
 
   /// Lo que vino del link y todavía no pasó: si en Google lo borraron, se
-  /// borra de Recordame; si le cambiaron el nombre o la hora, se cambia acá.
+  /// borra de Te Recordaré; si le cambiaron el nombre o la hora, se cambia acá.
   /// Los hechos y los ya pasados no se tocan.
   Future<({int removed, int changed})> followLink(
     ReminderRepository repo,
@@ -272,7 +272,7 @@ class CalendarSync {
 
   /// Los que están unidos a un evento del teléfono (traídos del calendario o
   /// mandados con el 2): si ese evento ya no existe (lo borraron en Google o
-  /// en el teléfono), se borran de Recordame. Los hechos y los ya pasados no
+  /// en el teléfono), se borran de Te Recordaré. Los hechos y los ya pasados no
   /// se tocan. Si de golpe faltan todos (y son varios), no se borra nada:
   /// algo anda mal con el calendario (por ejemplo, se sacó la cuenta).
   Future<int> followPhone(ReminderRepository repo, {DateTime? now}) async {
@@ -371,7 +371,7 @@ class CalendarSyncRepository implements ReminderRepository {
         );
       }
     } catch (_) {
-      // Sin permiso o calendario borrado: queda solo en Recordame.
+      // Sin permiso o calendario borrado: queda solo en Te Recordaré.
     }
     return saved;
   }

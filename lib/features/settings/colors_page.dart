@@ -143,7 +143,7 @@ class _ColorsPageState extends State<ColorsPage> {
                 icon: Icons.apps,
                 children: [
                   Text(
-                    'El dibujito de Recordame en la pantalla de inicio. '
+                    'El dibujito de Te Recordaré en la pantalla de inicio. '
                     'Elegís uno de estos, ya vienen preparados. Es uno solo '
                     'para día y noche.',
                     style: Theme.of(context).textTheme.bodySmall,
@@ -893,7 +893,7 @@ class _ListSample extends StatelessWidget {
   }
 }
 
-/// El ícono de Recordame (lapicera, almanaque y tilde) en una de sus
+/// El ícono de Te Recordaré (lapicera, almanaque y tilde) en una de sus
 /// combinaciones. Son los mismos dibujos del teléfono, generados con
 /// `tool/generar_iconos.py` en `assets/iconos/<id>.png`.
 class AppIconPreview extends StatelessWidget {

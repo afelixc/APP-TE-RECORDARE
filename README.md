@@ -1,4 +1,4 @@
-# Recordame
+# Te Recordaré
 
 App de recordatorios para Android. Le decís o le escribís en lenguaje natural lo que querés recordar ("Recordame el viernes a las 9 de la mañana lavar el auto") y arma el recordatorio con título, fecha y hora para que lo confirmes.
 
@@ -27,7 +27,7 @@ Se instala directamente con un APK, sin Play Store.
 1. Desde el teléfono, entrá a **[Releases](https://github.com/afelixc/aplicacion-recordatorio-telefono/releases/latest)** y descargá **`Recordame.apk`**.
 2. Abrí el APK en el teléfono. Android te va a pedir permiso para **instalar apps de origen desconocido**: aceptá solo para este archivo.
 3. La primera vez que abras la app, aceptá el permiso de **notificaciones** y el de **alarmas y recordatorios**.
-4. Recomendado: en Ajustes del teléfono → Batería, poné Recordame como **"Sin restricciones"**. Algunas marcas (Xiaomi, Samsung, Motorola, Huawei) cierran las apps en segundo plano y eso puede atrasar los avisos.
+4. Recomendado: en Ajustes del teléfono → Batería, poné Te Recordaré como **"Sin restricciones"**. Algunas marcas (Xiaomi, Samsung, Motorola, Huawei) cierran las apps en segundo plano y eso puede atrasar los avisos.
 
 ## Recordatorios que se repiten
 
@@ -54,7 +54,7 @@ Cada recordatorio avisa con una notificación a la fecha y hora indicadas, aunqu
 
 Cada vez que se publica una versión nueva, al abrir la app aparece el aviso **"Hay una versión nueva"** con dos botones: **Actualizar** o **Ahora no**. Si tocás Actualizar, la app baja la versión nueva y abre la ventana de Android para instalarla. Los recordatorios no se pierden.
 
-La primera vez, Android te va a pedir permiso para que Recordame **instale apps**: aceptalo.
+La primera vez, Android te va a pedir permiso para que Te Recordaré **instale apps**: aceptalo.
 
 ## Cargar tu clave de API (solo para el modo IA)
 

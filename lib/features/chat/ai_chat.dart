@@ -320,7 +320,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
     _Last(
       _Status.error,
       text:
-          'No pude usar el micrófono. Permití el acceso al micrófono para Recordame '
+          'No pude usar el micrófono. Permití el acceso al micrófono para Te Recordaré '
           'en los ajustes del teléfono, o escribilo.',
     ),
     'No pude usar el micrófono.',
