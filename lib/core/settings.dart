@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../features/chat/dictation.dart';
 import '../features/notebook/notes.dart';
 import 'palette.dart';
 
@@ -291,6 +292,10 @@ class AppSettings extends ChangeNotifier {
   String? calendarId;
   String? calendarName;
 
+  /// Dictado con pausas largas (prueba): pide a Android que espere más antes
+  /// de cortar cuando uno hace una pausa.
+  bool longPauseDictation = false;
+
   /// De Te Recordaré → al calendario.
   bool calendarSend = false;
 
@@ -338,6 +343,13 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
     await _store.write('cal_id', id);
     await _store.write('cal_name', name);
+  }
+
+  Future<void> setLongPauseDictation(bool value) async {
+    longPauseDictation = value;
+    Dictation.longPause = value;
+    notifyListeners();
+    await _store.write('dictado_pausas_largas', '$value');
   }
 
   Future<void> setCalendarSend(bool value) async {
@@ -473,6 +485,8 @@ class AppSettings extends ChangeNotifier {
     } catch (_) {}
     calendarId = await _store.read('cal_id');
     calendarName = await _store.read('cal_name');
+    longPauseDictation = await _store.read('dictado_pausas_largas') == 'true';
+    Dictation.longPause = longPauseDictation;
     calendarSend = await _store.read('cal_send') == 'true';
     calendarAuto = await _store.read('cal_auto') == 'true';
     try {

@@ -97,6 +97,9 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        val voiceChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "recordame/voz")
+        val voice = VoiceChannel(this, voiceChannel)
+        voiceChannel.setMethodCallHandler { call, result -> voice.onCall(call, result) }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "recordame/icono")
             .setMethodCallHandler { call, result ->
                 when (call.method) {

@@ -3,13 +3,19 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import 'long_pause_speech.dart';
+
 /// Dictado por voz sin límite de tiempo.
 ///
 /// El reconocimiento de Android se corta solo cuando uno hace una pausa; acá
 /// se vuelve a poner a escuchar enseguida y se va juntando todo lo dicho, hasta
 /// que el usuario toque Enviar o Cancelar.
 class Dictation extends ChangeNotifier {
-  Dictation({SpeechToText? speech}) : _speech = speech ?? SpeechToText();
+  Dictation({SpeechToText? speech})
+    : _speech = speech ?? (longPause ? LongPauseSpeech() : SpeechToText());
+
+  /// Configuración → "Dictado con pausas largas (prueba)".
+  static bool longPause = false;
 
   final SpeechToText _speech;
   bool _ready = false;

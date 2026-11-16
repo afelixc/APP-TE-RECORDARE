@@ -395,6 +395,17 @@ class _LanguagePage extends StatelessWidget {
             children: [
               for (final (code, label) in appLanguages)
                 RadioListTile<String>(value: code, title: Text(label)),
+              const Divider(),
+              SwitchListTile(
+                key: const Key('long-pause-dictation'),
+                title: const Text('Dictado con pausas largas (prueba)'),
+                subtitle: const Text(
+                  'Le pide al teléfono que espere más antes de cortar cuando hacés una pausa. '
+                  'Si algo anda peor, apagalo.',
+                ),
+                value: settings.longPauseDictation,
+                onChanged: settings.setLongPauseDictation,
+              ),
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
