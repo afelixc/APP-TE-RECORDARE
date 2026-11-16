@@ -24,7 +24,7 @@ Se instala directamente con un APK, sin Play Store.
 
 ## Instalar la app en el teléfono
 
-1. Desde el teléfono, entrá a **[Releases](https://github.com/afelixc/aplicacion-recordatorio-telefono/releases/latest)** y descargá **`Recordame.apk`**.
+1. Desde el teléfono, entrá a **[Releases](https://github.com/afelixc/APP-TE-RECORDARE/releases/latest)** y descargá **`Recordame.apk`**.
 2. Abrí el APK en el teléfono. Android te va a pedir permiso para **instalar apps de origen desconocido**: aceptá solo para este archivo.
 3. La primera vez que abras la app, aceptá el permiso de **notificaciones** y el de **alarmas y recordatorios**.
 4. Recomendado: en Ajustes del teléfono → Batería, poné Te Recordaré como **"Sin restricciones"**. Algunas marcas (Xiaomi, Samsung, Motorola, Huawei) cierran las apps en segundo plano y eso puede atrasar los avisos.
@@ -86,8 +86,8 @@ Las notificaciones, el listado y el almanaque funcionan sin internet y no gastan
 Requisitos: [Flutter](https://docs.flutter.dev/get-started/install) 3.47 o superior y el SDK de Android (viene con Android Studio).
 
 ```bash
-git clone https://github.com/afelixc/aplicacion-recordatorio-telefono.git
-cd aplicacion-recordatorio-telefono
+git clone https://github.com/afelixc/APP-TE-RECORDARE.git
+cd APP-TE-RECORDARE
 flutter pub get
 flutter run              # con el teléfono conectado por USB o un emulador
 flutter build apk --release

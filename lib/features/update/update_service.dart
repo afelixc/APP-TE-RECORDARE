@@ -21,7 +21,7 @@ class AppRelease {
 /// Cada cambio que se sube a `main` publica un release `v1.0.N`, donde N es el
 /// número de compilación. Si N es mayor que el de la app instalada, hay versión nueva.
 class UpdateService {
-  static const repo = 'afelixc/aplicacion-recordatorio-telefono';
+  static const repo = 'afelixc/APP-TE-RECORDARE';
   static const apkName = 'Recordame.apk';
 
   /// Devuelve la versión nueva, o null si no hay (o si no hay internet).
