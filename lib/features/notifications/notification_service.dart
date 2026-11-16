@@ -298,23 +298,39 @@ class NotificationService implements ReminderScheduler {
 
   AndroidNotificationChannel _mediaChannel() {
     final id = priorities.mediaSound;
-    if (id == PriorityConfig.appSound) return _channel;
+    final vib = priorities.mediaVibrate;
+    // Con vibración quedan los mismos canales de siempre.
+    final tail = vib ? '' : '_n';
+    if (id == PriorityConfig.appSound) {
+      if (vib) return _channel;
+      return AndroidNotificationChannel(
+        'prio_media_app$tail',
+        'Prioridad media · sonido de la app (sin vibrar)',
+        description: 'Avisos que se repiten hasta tocar Hecho',
+        importance: Importance.high,
+        sound: _channel.sound,
+        playSound: _channel.playSound,
+        enableVibration: false,
+      );
+    }
     if (priorities.mediaFromPhone) {
       final uri = priorities.mediaPhoneUri!;
       return AndroidNotificationChannel(
-        'prio_media_tel_${soundKey(uri)}',
-        'Prioridad media · ${priorities.mediaSoundName}',
+        'prio_media_tel_${soundKey(uri)}$tail',
+        'Prioridad media · ${priorities.mediaSoundName}${vib ? '' : ' (sin vibrar)'}',
         description: 'Avisos que se repiten hasta tocar Hecho',
         importance: Importance.high,
         sound: UriAndroidNotificationSound(uri),
+        enableVibration: vib,
       );
     }
     return AndroidNotificationChannel(
-      'prio_media_${priorities.mediaSoundId}',
-      'Prioridad media · ${priorities.mediaSoundName}',
+      'prio_media_${priorities.mediaSoundId}$tail',
+      'Prioridad media · ${priorities.mediaSoundName}${vib ? '' : ' (sin vibrar)'}',
       description: 'Avisos que se repiten hasta tocar Hecho',
       importance: Importance.high,
       sound: UriAndroidNotificationSound(_raw(priorities.mediaSoundId)),
+      enableVibration: vib,
     );
   }
 
@@ -365,7 +381,14 @@ class NotificationService implements ReminderScheduler {
       case ReminderPriority.media:
         final base = _mediaChannel();
         final ch = await _ensure(r.loud ? _loud(base) : base);
-        return _build(ch, alarm: r.loud, timeoutMs: timeoutMs);
+        // Sonar varias veces seguidas (o hasta "Hecho"): insiste.
+        final ringing = priorities.mediaTimes != 1;
+        return _build(
+          ch,
+          alarm: r.loud,
+          insistent: ringing,
+          timeoutMs: ringing ? _ringMillisFor(r.priority) : timeoutMs,
+        );
       case ReminderPriority.alta:
         final base = _altaChannel();
         final ch = await _ensure(r.loud ? _loud(base) : base);
@@ -375,15 +398,32 @@ class NotificationService implements ReminderScheduler {
           max: true,
           insistent: true,
           fullScreen: priorities.altaFullScreen,
-          timeoutMs: _ringMillis,
+          timeoutMs: _ringMillisFor(r.priority),
         );
     }
   }
 
-  /// Lo que suena cada aviso de prioridad alta ("cuántas veces seguido").
-  /// Nunca más de 55 segundos, para que no se pise con la repetición.
-  int get _ringMillis =>
-      (priorities.altaMillis * priorities.altaTimes + 300).clamp(1000, 55000);
+  /// Si el aviso de esa prioridad suena varias veces seguidas (o hasta
+  /// "Hecho") en vez de una sola.
+  bool _rings(ReminderPriority p) => switch (p) {
+    ReminderPriority.normal => false,
+    ReminderPriority.media => priorities.mediaTimes != 1,
+    ReminderPriority.alta => true,
+  };
+
+  /// Lo que suena cada aviso ("cuántas veces seguido"). Nunca más de 55
+  /// segundos, para que no se pise con la repetición. Null = hasta que se
+  /// toque "Hecho" (sin límite).
+  int? _ringMillisFor(ReminderPriority p) {
+    final times = p == ReminderPriority.alta
+        ? priorities.altaTimes
+        : priorities.mediaTimes;
+    if (times == 0) return null;
+    final one = p == ReminderPriority.alta
+        ? priorities.altaMillis
+        : priorities.mediaMillis;
+    return (one * times + 300).clamp(1000, 55000);
+  }
 
   /// Sonido de cada prioridad (null = el de notificación del teléfono).
   String? soundUriFor(ReminderPriority p) => switch (p) {
@@ -443,8 +483,10 @@ class NotificationService implements ReminderScheduler {
           ? AndroidScheduleMode.exactAllowWhileIdle
           : AndroidScheduleMode.alarmClock;
       final details = await _detailsFor(reminder);
-      final alta = reminder.priority == ReminderPriority.alta;
-      final stay = alta ? _build(await _ensure(_quiet)) : null;
+      final ring = _ringMillisFor(reminder.priority);
+      final stay = _rings(reminder.priority) && ring != null
+          ? _build(await _ensure(_quiet))
+          : null;
 
       Future<void> post(
         int notificationId,
@@ -468,9 +510,10 @@ class NotificationService implements ReminderScheduler {
         DateTimeComponents? repeat,
       ]) async {
         await post(id * _slots + slot, when, details, repeat);
-        // La alta suena un rato y se va; después queda este, sin sonido.
-        if (stay != null) {
-          final after = when.add(Duration(milliseconds: _ringMillis + 1000));
+        // Si suena varias veces seguidas se va al terminar; después queda
+        // este, sin sonido.
+        if (stay != null && ring != null) {
+          final after = when.add(Duration(milliseconds: ring + 1000));
           final staySlot = slot == _snoozeSlot ? 98 : slot + _staySlot;
           await post(id * _slots + staySlot, after, stay, repeat);
         }
@@ -641,7 +684,13 @@ class NotificationService implements ReminderScheduler {
     String body = 'Así te va a sonar.',
   }) async {
     final alta = priority == ReminderPriority.alta;
-    final vibrate = !alta || priorities.altaVibrate;
+    final ringing = _rings(priority);
+    final ring = _ringMillisFor(priority);
+    final vibrate = switch (priority) {
+      ReminderPriority.normal => true,
+      ReminderPriority.media => priorities.mediaVibrate,
+      ReminderPriority.alta => priorities.altaVibrate,
+    };
     final ch = await _ensure(vibrate ? _testVibrate : _testQuiet);
     await _plugin.show(
       id: 0,
@@ -650,14 +699,15 @@ class NotificationService implements ReminderScheduler {
       notificationDetails: _build(
         ch,
         max: alta,
-        timeoutMs: alta ? _ringMillis : null,
+        timeoutMs: ringing ? ring : null,
       ),
     );
     final error = await SoundPicker.test(
       soundUriFor(priority),
       alarm: loud,
-      millis: alta ? _ringMillis : 4000,
-      loop: alta,
+      // "Hasta Hecho": en la prueba suena un rato nomás.
+      millis: ringing ? (ring ?? 20000) : 4000,
+      loop: ringing,
     );
     final v = await SoundPicker.volume();
     if (v != null) {

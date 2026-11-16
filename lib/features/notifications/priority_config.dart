@@ -13,7 +13,10 @@ class PriorityConfig {
     this.mediaFrom = 8,
     this.mediaTo = 22,
     this.mediaSound = 'm_campanita_doble',
-    this.altaTimes = 6,
+    this.mediaTimes = 1,
+    this.mediaVibrate = true,
+    this.mediaPhoneMillis,
+    this.altaTimes = 3,
     this.altaEvery = 3,
     this.altaFor = 0,
     this.altaVibrate = true,
@@ -40,7 +43,18 @@ class PriorityConfig {
   /// Media: id de [mediaSounds], o [appSound] para el de la app.
   final String mediaSound;
 
-  /// Alta: cuántas veces suena seguido cada aviso.
+  /// Media: cuántas veces suena seguido cada aviso (1 a [maxTimes];
+  /// 0 = hasta que toque "Hecho").
+  final int mediaTimes;
+
+  /// Media: si vibra.
+  final bool mediaVibrate;
+
+  /// Lo que dura el sonido del teléfono de la media.
+  final int? mediaPhoneMillis;
+
+  /// Alta: cuántas veces suena seguido cada aviso (1 a [maxTimes];
+  /// 0 = hasta que toque "Hecho").
   final int altaTimes;
   final int altaEvery;
 
@@ -70,7 +84,23 @@ class PriorityConfig {
   static const altaEveryOptions = [1, 2, 3, 5, 10];
   static const mediaForOptions = [60, 180, 480, 0];
   static const altaForOptions = [60, 180, 480, 0];
-  static const timesOptions = [3, 5, 6, 8, 10, 15];
+  static const timesOptions = [1, 3, 5];
+
+  /// Lo más que se puede elegir en "cuántas veces suena seguido".
+  static const maxTimes = 10;
+
+  static int clampTimes(int v) => v < 0 ? 1 : (v > maxTimes ? maxTimes : v);
+
+  /// "3 veces", "1 vez" o "hasta Hecho".
+  static String timesShort(int times) => times == 0
+      ? 'hasta Hecho'
+      : times == 1
+      ? '1 vez'
+      : '$times veces';
+
+  /// "Suena 3 veces", "Suena 1 vez" o "Suena hasta que toque Hecho".
+  static String timesLabel(int times) =>
+      times == 0 ? 'Suena hasta que toque Hecho' : 'Suena ${timesShort(times)}';
 
   /// Android deja programar pocos avisos por app: cada recordatorio repite
   /// hasta esta cantidad de veces (después sigue el aviso fijo).
@@ -96,6 +126,18 @@ class PriorityConfig {
       ? (altaPhoneMillis ?? 3000).clamp(1000, 20000)
       : altaSoundInfo.millis;
 
+  /// Lo que dura una vez el sonido de la media (el de la app: se calcula).
+  int get mediaMillis => mediaFromPhone
+      ? (mediaPhoneMillis ?? 3000).clamp(1000, 20000)
+      : mediaSound == appSound
+      ? 2000
+      : mediaSounds
+            .firstWhere(
+              (s) => s.id == mediaSound,
+              orElse: () => mediaSounds.first,
+            )
+            .millis;
+
   /// Sonido propio de la media (si el elegido no existe, el primero).
   String get mediaSoundId => mediaSounds.any((s) => s.id == mediaSound)
       ? mediaSound
@@ -119,6 +161,9 @@ class PriorityConfig {
     int? mediaFrom,
     int? mediaTo,
     String? mediaSound,
+    int? mediaTimes,
+    bool? mediaVibrate,
+    int? mediaPhoneMillis,
     int? altaTimes,
     int? altaEvery,
     int? altaFor,
@@ -137,6 +182,9 @@ class PriorityConfig {
     mediaFrom: mediaFrom ?? this.mediaFrom,
     mediaTo: mediaTo ?? this.mediaTo,
     mediaSound: mediaSound ?? this.mediaSound,
+    mediaTimes: mediaTimes ?? this.mediaTimes,
+    mediaVibrate: mediaVibrate ?? this.mediaVibrate,
+    mediaPhoneMillis: mediaPhoneMillis ?? this.mediaPhoneMillis,
     altaTimes: altaTimes ?? this.altaTimes,
     altaEvery: altaEvery ?? this.altaEvery,
     altaFor: altaFor ?? this.altaFor,
@@ -157,6 +205,9 @@ class PriorityConfig {
     'mDesde': mediaFrom,
     'mHasta': mediaTo,
     'mSonido': mediaSound,
+    'mVeces': mediaTimes,
+    'mVibrar': mediaVibrate,
+    'mTelMs': ?mediaPhoneMillis,
     'aVeces': altaTimes,
     'aCada': altaEvery,
     'aDurante': altaFor,
@@ -188,7 +239,10 @@ class PriorityConfig {
         mediaFrom: i('mDesde', d.mediaFrom),
         mediaTo: i('mHasta', d.mediaTo),
         mediaSound: s('mSonido', d.mediaSound),
-        altaTimes: i('aVeces', d.altaTimes),
+        mediaTimes: clampTimes(i('mVeces', d.mediaTimes)),
+        mediaVibrate: b('mVibrar', d.mediaVibrate),
+        mediaPhoneMillis: j['mTelMs'] is int ? j['mTelMs'] as int : null,
+        altaTimes: clampTimes(i('aVeces', d.altaTimes)),
         altaEvery: i('aCada', d.altaEvery),
         altaFor: i('aDurante', d.altaFor),
         altaVibrate: b('aVibrar', d.altaVibrate),
@@ -208,6 +262,8 @@ class PriorityConfig {
   /// Horas en las que repite un aviso de prioridad media que tocó a las
   /// [first] (sin contar ese primer aviso).
   List<DateTime> mediaRepeats(DateTime first) {
+    // Suena sin parar hasta "Hecho": no hace falta repetir.
+    if (mediaTimes == 0) return const [];
     final every = Duration(minutes: mediaEvery);
     final DateTime end;
     var start = first.add(every);
@@ -228,6 +284,7 @@ class PriorityConfig {
 
   /// Horas en las que vuelve a sonar un aviso de prioridad alta.
   List<DateTime> altaRepeats(DateTime first) {
+    if (altaTimes == 0) return const [];
     final every = Duration(minutes: altaEvery);
     final end = altaFor == 0
         ? first.add(every * maxRepeats)

@@ -105,12 +105,17 @@ class PriorityChooser extends StatelessWidget {
 
   static String _explain(ReminderPriority p, PriorityConfig c) => switch (p) {
     ReminderPriority.normal => 'Avisa una vez, a la hora.',
+    ReminderPriority.media when c.mediaTimes == 0 =>
+      'Suena sin parar hasta "Hecho"${c.mediaVibrate ? ' y vibra' : ''}.',
     ReminderPriority.media =>
-      'Repite cada ${c.mediaEvery} min '
+      '${c.mediaTimes == 1 ? '' : '${PriorityConfig.timesLabel(c.mediaTimes)}; '}'
+          'Repite cada ${c.mediaEvery} min '
           '${c.mediaInHours ? 'de ${c.mediaFrom} a ${c.mediaTo} h' : 'durante ${PriorityConfig.forLabel(c.mediaFor).toLowerCase()}'}'
           ', hasta "Hecho".',
+    ReminderPriority.alta when c.altaTimes == 0 =>
+      'Suena sin parar hasta "Hecho"${c.altaVibrate ? ' y vibra' : ''}.',
     ReminderPriority.alta =>
-      'Suena ${c.altaTimes} veces'
+      '${PriorityConfig.timesLabel(c.altaTimes)}'
           '${c.altaVibrate ? ' y vibra' : ''}; repite cada ${c.altaEvery} min '
           'hasta "Hecho".',
   };

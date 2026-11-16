@@ -49,17 +49,17 @@ void main() {
     const c = PriorityConfig(
       mediaEvery: 10,
       mediaSound: 'm_gotas',
-      altaTimes: 15,
+      altaTimes: 10,
       altaSound: 'a_policia',
       altaFullScreen: false,
     );
     final back = PriorityConfig.decode(c.encode());
     expect(back.mediaEvery, 10);
     expect(back.mediaSoundName, 'Gotas');
-    expect(back.altaTimes, 15);
+    expect(back.altaTimes, 10);
     expect(back.altaSoundInfo.name, 'Sirena de policía');
     expect(back.altaFullScreen, isFalse);
-    expect(PriorityConfig.decode('no es json').altaTimes, 6);
+    expect(PriorityConfig.decode('no es json').altaTimes, 3);
     expect(PriorityConfig.decode(null).altaSound, 'a_sirena');
   });
 
@@ -254,6 +254,39 @@ void main() {
     expect(find.text('Elegir un sonido del teléfono…'), findsOneWidget);
   });
 
+  testWidgets(
+    'media: cuántas veces suena (1, 3, 5, hasta Hecho, otro) y vibrar',
+    (tester) async {
+      final service = NotificationService.instance;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: PrioritiesSection(service: service),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('prio-media')));
+      await tester.pumpAndSettle();
+      expect(find.text('Cuántas veces suena seguido'), findsOneWidget);
+      expect(find.byKey(const Key('media-vibrate')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('media-times')));
+      await tester.pumpAndSettle();
+      for (final t in ['3 veces', '5 veces', 'Hasta que toque Hecho']) {
+        expect(find.text(t), findsWidgets);
+      }
+      await tester.tap(find.text('Otro número…').last);
+      await tester.pumpAndSettle();
+      // Del 1 al 10, nada más.
+      for (var n = 1; n <= 10; n++) {
+        expect(find.byKey(Key('times-$n')), findsOneWidget);
+      }
+      expect(find.byKey(const Key('times-11')), findsNothing);
+    },
+  );
+
   testWidgets('el ejemplo: HECHO, 1 HORA y MAÑANA alineados en un renglón', (
     tester,
   ) async {
@@ -278,5 +311,29 @@ void main() {
     expect(manana.height, lessThan(hecho.height * 1.2));
     expect(manana.center.dy, closeTo(hecho.center.dy, 0.5));
     expect(hora.center.dy, closeTo(hecho.center.dy, 0.5));
+  });
+
+  test('cuántas veces suena seguido: de 1 a 10, o hasta "Hecho"', () {
+    const c = PriorityConfig(mediaTimes: 3, mediaVibrate: false, altaTimes: 0);
+    final back = PriorityConfig.decode(c.encode());
+    expect(back.mediaTimes, 3);
+    expect(back.mediaVibrate, isFalse);
+    expect(back.altaTimes, 0);
+    // Lo que se pasa de 10 queda en 10.
+    expect(PriorityConfig.decode('{"aVeces": 50, "mVeces": 99}').altaTimes, 10);
+    expect(PriorityConfig.decode('{"mVeces": 99}').mediaTimes, 10);
+    // Por defecto la media suena una vez y vibra, como antes.
+    expect(PriorityConfig.decode(null).mediaTimes, 1);
+    expect(PriorityConfig.decode(null).mediaVibrate, isTrue);
+    expect(PriorityConfig.timesShort(0), 'hasta Hecho');
+    expect(PriorityConfig.timesShort(1), '1 vez');
+    expect(PriorityConfig.timesShort(4), '4 veces');
+  });
+
+  test('si suena hasta "Hecho" no se programan repeticiones', () {
+    final ten = DateTime(2026, 1, 1, 10);
+    const c = PriorityConfig(mediaTimes: 0, altaTimes: 0);
+    expect(c.mediaRepeats(ten), isEmpty);
+    expect(c.altaRepeats(ten), isEmpty);
   });
 }

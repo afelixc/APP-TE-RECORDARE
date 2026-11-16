@@ -21,8 +21,16 @@ String _raw(String id) => 'android.resource://com.afelixc.recordame/raw/$id';
 /// Resumen chico de lo que hace cada prioridad.
 String prioritySummary(ReminderPriority p, PriorityConfig c) => switch (p) {
   ReminderPriority.normal => 'Una vez',
-  ReminderPriority.media => 'Cada ${c.mediaEvery} min',
-  ReminderPriority.alta => '${c.altaTimes} veces, cada ${c.altaEvery} min',
+  ReminderPriority.media =>
+    c.mediaTimes == 0
+        ? 'Hasta Hecho'
+        : c.mediaTimes == 1
+        ? 'Cada ${c.mediaEvery} min'
+        : '${c.mediaTimes} veces, cada ${c.mediaEvery} min',
+  ReminderPriority.alta =>
+    c.altaTimes == 0
+        ? 'Hasta Hecho'
+        : '${c.altaTimes} ${c.altaTimes == 1 ? 'vez' : 'veces'}, cada ${c.altaEvery} min',
 };
 
 /// "Prioridades de notificaciones": tres ventanitas chicas (cada una abre
@@ -286,11 +294,13 @@ class _PriorityPageState extends State<PriorityPage> {
           ),
         );
       } else {
+        final ms = await SoundPicker.duration(uri);
         await _set(
           _c.copyWith(
             mediaSound: PriorityConfig.phoneSound,
             mediaPhoneUri: uri,
             mediaPhoneName: picked.name,
+            mediaPhoneMillis: ms ?? 3000,
           ),
         );
       }
@@ -368,6 +378,49 @@ class _PriorityPageState extends State<PriorityPage> {
       ],
     ),
   );
+
+  /// "Cuántas veces suena seguido": 1, 3, 5, hasta "Hecho" u otro número
+  /// (de 1 a [PriorityConfig.maxTimes]).
+  Widget _timesChoice(int value, ValueChanged<int> onChanged, {Key? key}) {
+    const other = -1;
+    final preset = PriorityConfig.timesOptions;
+    final custom = value != 0 && !preset.contains(value);
+    final options = [...preset, if (custom) value, 0, other];
+    String text(int v) => v == 0
+        ? 'Hasta que toque Hecho'
+        : v == other
+        ? 'Otro número…'
+        : v == 1
+        ? '1 vez'
+        : '$v veces';
+    return _choice<int>('Cuántas veces suena seguido', value, options, text, (
+      v,
+    ) async {
+      if (v != other) return onChanged(v);
+      final picked = await showDialog<int>(
+        context: context,
+        builder: (ctx) => SimpleDialog(
+          title: Text('¿Cuántas veces (1 a ${PriorityConfig.maxTimes})?'),
+          children: [
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var n = 1; n <= PriorityConfig.maxTimes; n++)
+                  OutlinedButton(
+                    key: Key('times-$n'),
+                    onPressed: () => Navigator.of(ctx).pop(n),
+                    child: Text('$n'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      );
+      if (picked != null) onChanged(picked);
+    }, key: key);
+  }
 
   Widget _sounds(
     List<(String, String, String?)> sounds,
@@ -457,6 +510,18 @@ class _PriorityPageState extends State<PriorityPage> {
               (v) => _set(c.copyWith(mediaEvery: v)),
               key: const Key('media-every'),
             ),
+            _timesChoice(
+              c.mediaTimes,
+              (v) => _set(c.copyWith(mediaTimes: v)),
+              key: const Key('media-times'),
+            ),
+            SwitchListTile(
+              key: const Key('media-vibrate'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Vibrar'),
+              value: c.mediaVibrate,
+              onChanged: (v) => _set(c.copyWith(mediaVibrate: v)),
+            ),
             _choice<int>(
               'Durante',
               c.mediaInHours ? -1 : c.mediaFor,
@@ -521,11 +586,8 @@ class _PriorityPageState extends State<PriorityPage> {
       case ReminderPriority.alta:
         children.addAll([
           _box([
-            _choice(
-              'Cuántas veces suena seguido',
+            _timesChoice(
               c.altaTimes,
-              PriorityConfig.timesOptions,
-              (v) => '$v',
               (v) => _set(c.copyWith(altaTimes: v)),
               key: const Key('alta-times'),
             ),
@@ -593,9 +655,9 @@ class _PriorityPageState extends State<PriorityPage> {
         style: FilledButton.styleFrom(backgroundColor: priorityColor(p)),
         icon: const Icon(Icons.notifications_active_outlined),
         label: Text(
-          p == ReminderPriority.alta
-              ? 'Probar cómo suena (${c.altaTimes} veces)'
-              : 'Probar un aviso',
+          p == ReminderPriority.normal
+              ? 'Probar un aviso'
+              : 'Probar cómo suena (${PriorityConfig.timesShort(p == ReminderPriority.alta ? c.altaTimes : c.mediaTimes)})',
         ),
         onPressed: _test,
       ),
