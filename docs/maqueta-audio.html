@@ -1,0 +1,78 @@
+<title>Maqueta Audio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+:root{--bg:#f4f6fb;--fg:#17203a;--mut:#5d6785;--card:#fff;--line:#d3d9ea;--azul:#1f4fbf;--oro:#e0a800;--ok:#1f8a4c;--rojo:#c0392b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1424;--fg:#e8ecf8;--mut:#9aa5c6;--card:#1a2140;--line:#2c3562;--azul:#6f9bff;--oro:#f2c230;--ok:#4cc27d;--rojo:#ff7b6b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1424;--fg:#e8ecf8;--mut:#9aa5c6;--card:#1a2140;--line:#2c3562;--azul:#6f9bff;--oro:#f2c230;--ok:#4cc27d;--rojo:#ff7b6b;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,sans-serif;padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-size:22px;margin:0;text-wrap:balance}
+p{margin:0;color:var(--mut)}
+.box{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.box h2{margin:0;font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--azul)}
+.screen{min-height:250px;justify-content:center;align-items:center;text-align:center}
+.mic{width:76px;height:76px;border-radius:50%;border:0;background:var(--azul);color:#fff;font-size:34px;cursor:pointer}
+.mic.rec{background:var(--rojo);animation:p 1.2s infinite}
+@keyframes p{50%{transform:scale(1.08)}}
+@media (prefers-reduced-motion:reduce){.mic.rec{animation:none}}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.btn{border:2px solid var(--line);background:var(--card);color:var(--fg);border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+.btn.main{background:var(--azul);border-color:var(--azul);color:#fff}
+.btn.pause{border-color:var(--oro)}
+.card{width:100%;text-align:left;border:2px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.ok{color:var(--ok);font-weight:700}
+.big{font-size:28px;font-variant-numeric:tabular-nums}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:420px){.cmp{grid-template-columns:1fr}}
+.cmp div{border:2px solid var(--line);border-radius:12px;padding:10px;font-size:14px}
+.cmp b{display:block;margin-bottom:4px}
+.mal{border-color:var(--rojo)!important}.bien{border-color:var(--ok)!important}
+small{color:var(--mut)}
+</style>
+<div class="wrap">
+<h1>Grabar audio (maqueta)</h1>
+<p>Probá tocando el micrófono. Es solo una simulación, no graba nada.</p>
+
+<div class="box screen" id="s">
+  <div id="body"></div>
+</div>
+
+<div class="box">
+<h2>Cómo es hoy y cómo sería</h2>
+<div class="cmp">
+<div class="mal"><b>Hoy (dictado de Android)</b>Se corta en cada pausa y se vuelve a prender. Lo que decís en ese hueco se pierde: a veces el horario.</div>
+<div class="bien"><b>Con audio</b>Graba todo de corrido, con las pausas que quieras. Al tocar Enviar, la IA escucha el audio entero.</div>
+</div>
+<small>Este modo es opcional: el dictado de hoy queda como respaldo.</small>
+</div>
+</div>
+
+<script>
+const body=document.getElementById('body');
+let t=0,timer=null;
+const fmt=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+function inicio(){
+  clearInterval(timer);
+  body.innerHTML='<p>Tocá para grabar</p><br><button class="mic" id="m">🎤</button><br><br><small>Ejemplo: "recordame llamar a Pérez… (pausa)… mañana a las 15:05"</small>';
+  document.getElementById('m').onclick=grabar;
+}
+function grabar(){
+  t=0;
+  body.innerHTML='<div class="big" id="c">Grabando 0:00</div><p>Podés hacer pausas, sigue grabando.</p><br><button class="mic rec" aria-label="Grabando">🎤</button><br><br><div class="row"><button class="btn" id="x">Cancelar</button><button class="btn pause" id="p">Pausa de 5 s</button><button class="btn main" id="e">Enviar</button></div>';
+  const c=document.getElementById('c');
+  timer=setInterval(()=>{t++;c.textContent='Grabando '+fmt(t)},1000);
+  document.getElementById('x').onclick=inicio;
+  document.getElementById('p').onclick=()=>{c.textContent='Grabando '+fmt(t)+' · en pausa…'};
+  document.getElementById('e').onclick=enviar;
+}
+function enviar(){
+  clearInterval(timer);
+  body.innerHTML='<div class="big">⏳</div><p>La IA está escuchando el audio…</p>';
+  setTimeout(tarjeta,1800);
+}
+function tarjeta(){
+  body.innerHTML='<div class="card"><b>Llamar a Pérez</b><span>Mañana · 15:05</span><span class="ok">✓ Activo</span><small>Dijiste: "recordame llamar a Pérez mañana a las 15:05"</small></div><br><div class="row"><button class="btn" id="mo">Modificar</button><button class="btn" id="ca">Cancelar</button></div><br><button class="btn main" id="n">Probar de nuevo</button>';
+  document.getElementById('n').onclick=inicio;
+}
+inicio();
+</script>
