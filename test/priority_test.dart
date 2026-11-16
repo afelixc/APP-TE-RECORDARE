@@ -242,7 +242,7 @@ void main() {
     await tester.tap(find.byKey(const Key('prio-alta')));
     await tester.pumpAndSettle();
     expect(find.text('Prioridad alta'), findsOneWidget);
-    expect(find.text('Cuántas veces suena seguido'), findsOneWidget);
+    expect(find.text('Cuántas veces suena'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Pitido urgente'), 200);
     expect(find.text('Sirena de policía'), findsOneWidget);
     // Abajo de todo: elegir un sonido del teléfono.
@@ -267,17 +267,25 @@ void main() {
           ),
         ),
       );
+      tester.view.physicalSize = const Size(738, 1600);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
       await tester.tap(find.byKey(const Key('prio-media')));
       await tester.pumpAndSettle();
-      expect(find.text('Cuántas veces suena seguido'), findsOneWidget);
+      expect(find.text('Cuántas veces suena'), findsOneWidget);
+      // Una fila chica de un renglón, como "Repetir cada" (antes se partía
+      // letra por letra a lo alto).
+      final row = tester.getSize(find.text('Cuántas veces suena'));
+      final every = tester.getSize(find.text('Repetir cada'));
+      expect(row.height, lessThan(every.height * 1.5));
       expect(find.byKey(const Key('media-vibrate')), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('media-times')));
       await tester.pumpAndSettle();
-      for (final t in ['3 veces', '5 veces', 'Hasta que toque Hecho']) {
+      for (final t in ['3 veces', '5 veces', 'Hasta Hecho']) {
         expect(find.text(t), findsWidgets);
       }
-      await tester.tap(find.text('Otro número…').last);
+      await tester.tap(find.text('Otro…').last);
       await tester.pumpAndSettle();
       // Del 1 al 10, nada más.
       for (var n = 1; n <= 10; n++) {

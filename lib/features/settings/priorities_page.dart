@@ -363,7 +363,14 @@ class _PriorityPageState extends State<PriorityPage> {
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: Row(
       children: [
-        Expanded(child: Text(label)),
+        Expanded(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(label, maxLines: 1),
+          ),
+        ),
+        const SizedBox(width: 8),
         DropdownButton<T>(
           key: key,
           value: options.contains(value) ? value : options.first,
@@ -387,13 +394,13 @@ class _PriorityPageState extends State<PriorityPage> {
     final custom = value != 0 && !preset.contains(value);
     final options = [...preset, if (custom) value, 0, other];
     String text(int v) => v == 0
-        ? 'Hasta que toque Hecho'
+        ? 'Hasta Hecho'
         : v == other
-        ? 'Otro número…'
+        ? 'Otro…'
         : v == 1
         ? '1 vez'
         : '$v veces';
-    return _choice<int>('Cuántas veces suena seguido', value, options, text, (
+    return _choice<int>('Cuántas veces suena', value, options, text, (
       v,
     ) async {
       if (v != other) return onChanged(v);
@@ -510,18 +517,6 @@ class _PriorityPageState extends State<PriorityPage> {
               (v) => _set(c.copyWith(mediaEvery: v)),
               key: const Key('media-every'),
             ),
-            _timesChoice(
-              c.mediaTimes,
-              (v) => _set(c.copyWith(mediaTimes: v)),
-              key: const Key('media-times'),
-            ),
-            SwitchListTile(
-              key: const Key('media-vibrate'),
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Vibrar'),
-              value: c.mediaVibrate,
-              onChanged: (v) => _set(c.copyWith(mediaVibrate: v)),
-            ),
             _choice<int>(
               'Durante',
               c.mediaInHours ? -1 : c.mediaFor,
@@ -550,6 +545,18 @@ class _PriorityPageState extends State<PriorityPage> {
                 (v) => _set(c.copyWith(mediaTo: v)),
               ),
             ],
+            _timesChoice(
+              c.mediaTimes,
+              (v) => _set(c.copyWith(mediaTimes: v)),
+              key: const Key('media-times'),
+            ),
+            SwitchListTile(
+              key: const Key('media-vibrate'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Vibrar'),
+              value: c.mediaVibrate,
+              onChanged: (v) => _set(c.copyWith(mediaVibrate: v)),
+            ),
             const SizedBox(height: 4),
             Text(
               'Si es a las 10:00: ${times(c.mediaRepeats(example))}.\n'

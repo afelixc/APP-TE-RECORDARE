@@ -207,7 +207,8 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
       );
     } catch (_) {
       const message =
-          'No me pude conectar. Revisá tu internet, o cargalo a mano.';
+          'No me pude conectar con la IA (¿sin internet?). '
+          'Lo que dijiste no se perdió: tocá "Cargarlo a mano" y lo completás vos.';
       _show(
         _Last(_Status.error, said: text, text: message),
         message,
@@ -554,6 +555,18 @@ class _LastView extends StatelessWidget {
                 text: last.text ?? '',
                 error: last.status == _Status.error,
               ),
+              if (last.status == _Status.error &&
+                  (last.said ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                FilledButton.tonalIcon(
+                  key: const Key('error-manual'),
+                  icon: const Icon(Icons.edit_note),
+                  label: const Text('Cargarlo a mano'),
+                  // Ya viene con lo que dijiste en el "Qué".
+                  onPressed: () =>
+                      showReminderEditor(context, initialTitle: last.said!),
+                ),
+              ],
               if (last.status == _Status.question) ...[
                 Text(
                   'Respondeme con el micrófono o escribiendo.',

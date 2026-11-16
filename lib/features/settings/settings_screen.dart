@@ -72,7 +72,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             SettingsMenuItem(
               icon: Icons.language,
-              title: 'Idioma',
+              title: 'Idioma y micrófono',
               subtitle: language,
               page: (_) => _LanguagePage(settings: settings),
             ),
@@ -383,7 +383,7 @@ class _LanguagePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Idioma')),
+      appBar: AppBar(title: const Text('Idioma y micrófono')),
       body: ListenableBuilder(
         listenable: settings,
         builder: (context, _) => RadioGroup<String>(
