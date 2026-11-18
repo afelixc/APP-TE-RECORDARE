@@ -195,27 +195,48 @@ class _HomeShellState extends State<HomeShell> {
           child: tab.builder(context),
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: _select,
-        destinations: [
-          for (final t in appTabs)
-            _OneLineLabel(
-              label: t.label,
-              child: t.label == 'Libreta'
-                  ? NavigationDestination(
-                      key: const Key('tab-libreta'),
-                      icon: const _NotebookTabIcon(selected: false),
-                      selectedIcon: const _NotebookTabIcon(selected: true),
-                      label: t.label,
-                    )
-                  : NavigationDestination(
-                      icon: Icon(t.icon),
-                      selectedIcon: Icon(t.selectedIcon),
-                      label: t.label,
-                    ),
-            ),
-        ],
+      // La solapa elegida se agranda y se destaca (pedido del usuario): dibujo
+      // más grande, letra más grande y en negrita del color de la app.
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          indicatorColor: scheme.primary.withValues(alpha: night ? 0.35 : 0.22),
+          iconTheme: WidgetStateProperty.resolveWith(
+            (s) => s.contains(WidgetState.selected)
+                ? IconThemeData(size: 30, color: scheme.primary)
+                : IconThemeData(size: 22, color: scheme.onSurfaceVariant),
+          ),
+          labelTextStyle: WidgetStateProperty.resolveWith(
+            (s) => s.contains(WidgetState.selected)
+                ? TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: scheme.primary,
+                  )
+                : TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: _select,
+          destinations: [
+            for (final t in appTabs)
+              _OneLineLabel(
+                label: t.label,
+                child: t.label == 'Libreta'
+                    ? NavigationDestination(
+                        key: const Key('tab-libreta'),
+                        icon: const _NotebookTabIcon(selected: false),
+                        selectedIcon: const _NotebookTabIcon(selected: true),
+                        label: t.label,
+                      )
+                    : NavigationDestination(
+                        icon: Icon(t.icon),
+                        selectedIcon: Icon(t.selectedIcon),
+                        label: t.label,
+                      ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -297,7 +318,7 @@ class _NotebookTabIcon extends StatelessWidget {
             child: Icon(
               selected ? Icons.menu_book : Icons.menu_book_outlined,
               color: fg,
-              size: 20,
+              size: selected ? 26 : 20,
             ),
           ),
         );
