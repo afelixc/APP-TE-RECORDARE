@@ -31,7 +31,7 @@ h1{font-size:26px;font-weight:900;margin:0 0 4px;text-wrap:balance}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:26px;max-width:1280px}
 figure{margin:0;display:flex;flex-direction:column;gap:10px;min-width:0}
 figcaption{font-size:14px;min-width:0}
-figcaption b{display:block;font-size:16px;font-weight:900;margin-bottom:2px}
+figcaption > b{display:block;font-size:16px;font-weight:900;margin-bottom:2px}
 figcaption ul{margin:4px 0 0;padding-left:18px;color:var(--muted)}
 .n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--phone);font-size:13px;font-weight:900;margin-right:6px}
 
@@ -40,9 +40,25 @@ figcaption ul{margin:4px 0 0;padding-left:18px;color:var(--muted)}
 .top{background:var(--bar);color:var(--barfg);padding:12px;font-weight:900;letter-spacing:.12em;text-align:center;font-size:15px}
 .top.left{text-align:left;letter-spacing:0;display:flex;gap:8px;align-items:center;font-size:14px}
 .screen{flex:1;overflow:hidden;padding:10px;display:flex;flex-direction:column;gap:8px;position:relative}
-.nav{display:grid;grid-template-columns:repeat(4,1fr);background:var(--navbg);padding:6px 2px 4px}
-.nav div{text-align:center;font-size:10.5px;color:var(--muted);white-space:nowrap}
-.nav i{display:block;font-style:normal;font-size:17px;line-height:22px;margin:0 auto 1px;width:44px;border-radius:12px}
+.nav{display:grid;grid-template-columns:repeat(5,1fr);background:var(--navbg);padding:6px 2px 4px}
+.nav div{text-align:center;font-size:9.5px;color:var(--muted);white-space:nowrap}
+.nav i{display:block;font-style:normal;font-size:17px;line-height:22px;margin:0 auto 1px;width:40px;border-radius:12px;position:relative}
+/* La Libreta en la barra: recuadro amarillo y el botoncito rojo con lo pendiente */
+.nav .lb i{width:34px;border:2px solid var(--lib);background:var(--libbg);border-radius:9px;line-height:19px}
+.nav .lb.on i{background:var(--libbg);box-shadow:0 0 0 3px var(--sel)}
+.nav .lb i u{position:absolute;top:-7px;right:-9px;min-width:16px;height:16px;border-radius:8px;background:#d32f2f;color:#fff;font-size:9.5px;font-weight:900;line-height:16px;text-decoration:none;padding:0 3px}
+.anotar{display:flex;gap:6px;align-items:center}
+.anotar .en{flex:1;min-width:0;border:1.5px solid var(--lib);background:var(--libbg);border-radius:10px;padding:6px 8px;font-weight:900;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.anotar .tn{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--muted);border-radius:16px;overflow:hidden;font-size:11px;font-weight:800;text-align:center}
+.anotar .tn span{padding:4px 8px}.anotar .tn .on{background:var(--sel)}
+.folders{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.fcard{border:2px solid;border-radius:12px;padding:7px 8px;height:66px;display:flex;flex-direction:column;justify-content:space-between}
+.fcard b{color:var(--fg);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fbtns{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.fbtns span{border:1px solid var(--line);border-radius:9px;padding:6px 7px;font-size:11.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fbtns .on{border:2px solid var(--lib);background:var(--libbg)}
+.wide{border:1.2px solid var(--lib);background:var(--libbg);color:var(--lib);border-radius:10px;padding:7px;text-align:center;font-weight:800;font-size:12.5px}
+.newmark{position:absolute;right:6px;bottom:44px;background:var(--danger);color:#fff;font-size:9.5px;font-weight:900;border-radius:6px;padding:1px 5px;z-index:4}
 .nav .on{color:var(--fg);font-weight:800}
 .nav .on i{background:var(--sel)}
 .sysbar{height:18px;background:var(--navbg);display:flex;justify-content:space-around;align-items:center;color:var(--sys);font-size:11px}
@@ -166,8 +182,8 @@ figcaption ul{margin:4px 0 0;padding-left:18px;color:var(--muted)}
 @media (prefers-reduced-motion:no-preference){.fab{transition:transform .15s}.fab:active{transform:scale(1.08)}}
 </style>
 
-<h1>Libreta flotante, tareas y notas</h1>
-<p class="lead">Maqueta para ver antes de instalar. Los números siguen el orden de tu pedido. En la carpeta podés tocar <b>Tareas / Notas</b> y los engranajitos ⚙ para ver cómo funcionan.</p>
+<h1>Libreta abajo, tareas y notas</h1>
+<p class="lead">Maqueta para ver antes de instalar. <b>Nuevo:</b> la Libreta pasó a la barra de abajo (entre Listado y Configuración) y ya no hay botón flotante. Lo demás queda como estaba. Los números siguen el orden de tus pedidos. En la carpeta podés tocar <b>Tareas / Notas</b> y los engranajitos ⚙ para ver cómo funcionan.</p>
 
 <div class="grid">
 
@@ -193,13 +209,14 @@ figcaption ul{margin:4px 0 0;padding-left:18px;color:var(--muted)}
     <div class="mic">🎤</div>
     <div class="compose"><div class="field">O escribilo acá…</div><div class="send">➤</div></div>
   </div>
-  <div class="nav"><div class="on"><i>💬</i>Chat</div><div><i>📅</i>Almanaque</div><div><i>☑</i>Listado</div><div><i>⚙</i>Configuración</div></div>
+  <div class="nav"><div class="on"><i>💬</i>Chat</div><div><i>📅</i>Almanaque</div><div><i>☑</i>Listado</div><div class="lb"><i>📒<u>5</u></i>Libreta</div><div><i>⚙</i>Configuración</div></div>
   <div class="sysbar">|||  ◯  ‹</div>
 </div>
 <figcaption><b><span class="n">2</span>Botones más chicos y "5 pendientes" en rojo</b>
 <ul><li>"Cargar a mano" y "Libreta" bajan de alto, así queda más lugar arriba.</li>
 <li>Sin recuadro: la letra roja dice <b>5 pendientes</b>, 4 pendientes… Cuando no falta nada dice <span class="pend ok">Todo hecho ✓</span> en verde.</li>
-<li>Lo mismo en las carpetas de adentro de la libreta.</li></ul></figcaption>
+<li>Lo mismo en las carpetas de adentro de la libreta.</li>
+<li><b>Nuevo:</b> el botón Libreta del Chat te lleva a la solapa Libreta de abajo.</li></ul></figcaption>
 </figure>
 
 <!-- 1b Gratis -->
@@ -221,13 +238,13 @@ figcaption ul{margin:4px 0 0;padding-left:18px;color:var(--muted)}
     <div class="kind" style="grid-template-columns:1fr 1fr 1fr"><button class="on" style="border-color:var(--ok);color:var(--ok);background:var(--okbg)">Normal</button><button>Media</button><button>Alta</button></div>
     <div class="btns"><span class="c">Cancelar</span><span class="s">Guardar</span></div>
   </div>
-  <div class="nav"><div class="on"><i>💬</i>Chat</div><div><i>📅</i>Almanaque</div><div><i>☑</i>Listado</div><div><i>⚙</i>Configuración</div></div>
+  <div class="nav"><div class="on"><i>💬</i>Chat</div><div><i>📅</i>Almanaque</div><div><i>☑</i>Listado</div><div class="lb"><i>📒<u>5</u></i>Libreta</div><div><i>⚙</i>Configuración</div></div>
   <div class="sysbar">|||  ◯  ‹</div>
 </div>
 <figcaption><b><span class="n">5</span>Modo gratis igual que con IA</b>
 <ul><li>Los mismos dos botones (Cargar a mano y Libreta con "5 pendientes"), en el mismo lugar y del mismo tamaño.</li>
 <li>Al cargar a mano también se elige la prioridad (Normal · Media · Alta) y "sonar en silencio".</li>
-<li>El botón flotante de la libreta aparece igual en las otras solapas.</li></ul></figcaption>
+<li>La Libreta está abajo, en la barra, igual que en el modo con IA.</li></ul></figcaption>
 </figure>
 
 <!-- 2 Almanaque con flotante -->
@@ -248,43 +265,70 @@ figcaption ul{margin:4px 0 0;padding-left:18px;color:var(--muted)}
     <div class="swipe">👆 Deslizar ← → cambia de solapa.<br>El mes se cambia solo con las flechitas ‹ ›</div>
     <div class="occ">Llamar al contador<small>hoy · 17:30 h</small></div>
     <div class="occ">Hacer impresión 3D para depósito…<small>hoy · 21:00 h</small></div>
-    <span class="drag">mantené apretado y movelo ↔</span>
-    <div class="fab" tabindex="0" role="button" aria-label="Abrir libreta, 5 pendientes"><span class="ic">📒</span><span class="c">Libreta<span class="pend">5 pendientes</span></span></div>
   </div>
-  <div class="nav"><div><i>💬</i>Chat</div><div class="on"><i>📅</i>Almanaque</div><div><i>☑</i>Listado</div><div><i>⚙</i>Configuración</div></div>
+  <div class="nav"><div><i>💬</i>Chat</div><div class="on"><i>📅</i>Almanaque</div><div><i>☑</i>Listado</div><div class="lb"><i>📒<u>5</u></i>Libreta</div><div><i>⚙</i>Configuración</div></div>
   <div class="sysbar">|||  ◯  ‹</div>
 </div>
-<figcaption><b><span class="n">3</span>Libreta flotante · <span class="n">6</span>Deslizar entre solapas</b>
-<ul><li>En Almanaque, Listado y Configuración queda la libreta chiquita, flotando abajo a la derecha, con lo pendiente.</li>
-<li>Se puede arrastrar a otro lugar si tapa algo.</li>
-<li>Deslizando el dedo: Chat → Almanaque → Listado → Configuración → vuelve a Chat (y para el otro lado).</li>
+<figcaption><b><span class="n">3</span>Libreta en la barra de abajo · <span class="n">6</span>Deslizar entre solapas</b>
+<ul><li><b>Nuevo:</b> se sacó la libreta flotante. Ahora la Libreta es un botón más de abajo: Chat · Almanaque · Listado · <b>Libreta</b> · Configuración.</li>
+<li>Va en un recuadro amarillo y arriba lleva un botoncito rojo con cuántas cosas faltan (<b>5</b>).</li>
+<li>Deslizando el dedo: Chat → Almanaque → Listado → Libreta → Configuración → vuelve a Chat (y para el otro lado).</li>
 <li>El almanaque ya no cambia de mes al deslizar: para eso están las flechitas.</li></ul></figcaption>
 </figure>
 
-<!-- 2b toque flotante -->
+<!-- 2b Solapa Libreta -->
 <figure>
 <div class="phone">
   <div class="top">TE RECORDARÉ</div>
   <div class="screen">
-    <div class="month"><span>‹</span>Noviembre 2026<span>›</span></div>
-    <div class="occ">Llamar al contador<small>hoy · 17:30 h</small></div>
+    <div class="search">🔍 Buscar en la libreta…</div>
+    <div class="hint"><span>Tus carpetas. Tocá una para ver lo que tenés para hacer.</span></div>
+    <div class="folders">
+      <div class="fcard" style="border-color:#e0a800;background:#e0a8001f"><span>📁</span><b>General</b><span class="pend">2 pendientes</span></div>
+      <div class="fcard" style="border-color:#e67e22;background:#e67e221f"><span>📁</span><b>Impresiones 3D</b><span class="pend">3 pendientes</span></div>
+      <div class="fcard" style="border-color:#2e8b57;background:#2e8b571f"><span>📁</span><b>Compras</b><span class="pend ok">Todo hecho ✓</span></div>
+    </div>
+    <div class="search" style="text-align:center;font-weight:700;color:var(--fg)">📁＋ Nueva carpeta</div>
+  </div>
+  <div style="background:var(--navbg);padding:7px 8px 0;display:flex;flex-direction:column;gap:6px">
+    <div class="anotar"><div class="en">📁 Anotar en: General ▾</div><div class="tn"><span class="on">Tarea</span><span>Nota</span></div></div>
+  </div>
+  <div class="inbar" style="border-top:0;background:var(--navbg)"><div class="field">Escribí o dictá lo que tenés que hacer…</div><span class="ok">✓</span><span class="mi">🎤</span></div>
+  <div class="nav"><div><i>💬</i>Chat</div><div><i>📅</i>Almanaque</div><div><i>☑</i>Listado</div><div class="lb on"><i>📒<u>5</u></i>Libreta</div><div><i>⚙</i>Configuración</div></div>
+  <div class="sysbar">|||  ◯  ‹</div>
+</div>
+<figcaption><b><span class="n">11</span>Adentro de la Libreta</b>
+<ul><li>Tocando <b>Libreta</b> abajo se abre lo de siempre: el buscador, tus carpetas y "Nueva carpeta".</li>
+<li>Abajo se escribe o se dicta directo: <b>Anotar en</b> dice en qué carpeta va, <b>Tarea / Nota</b> y el campo con ✓ y micrófono.</li>
+<li>Ya no están <b>Cancelar</b> ni <b>Abrir libreta</b>: no hacen falta.</li>
+<li>Cada vez que salís y volvés a entrar, arranca siempre en esta pantalla de inicio.</li></ul></figcaption>
+</figure>
+
+<!-- 2c Elegir carpeta -->
+<figure>
+<div class="phone">
+  <div class="top">TE RECORDARÉ</div>
+  <div class="screen">
+    <div class="search">🔍 Buscar en la libreta…</div>
+    <div class="folders">
+      <div class="fcard" style="border-color:#e0a800"><span>📁</span><b>General</b><span class="pend">2 pendientes</span></div>
+      <div class="fcard" style="border-color:#e67e22"><span>📁</span><b>Impresiones 3D</b><span class="pend">3 pendientes</span></div>
+    </div>
     <div class="dim"></div>
     <div class="sheet" style="bottom:0">
       <div class="grab"></div>
-      <h3>📒 Anotar en la libreta</h3>
-      <div class="pick"><span class="on">General</span><span>Compras</span><span>Impresiones 3D</span><span>＋</span></div>
-      <div class="kind"><button class="on">☑ Tarea</button><button>📝 Nota</button></div>
-      <div class="inp">Comprar filamento PETG negro</div>
-      <div class="btns"><span class="c">Abrir libreta</span><span class="s">✓ Anotar</span></div>
-      <div class="safe">Los botones siempre por arriba de la barra del teléfono</div>
+      <h3>¿En qué carpeta anoto?</h3>
+      <div class="fbtns"><span class="on">📁 General</span><span>📁 Impresiones 3D</span><span>📁 Compras</span><span>📁 Auto</span></div>
+      <div class="wide">📁＋ Crear carpeta nueva</div>
     </div>
   </div>
-  <div class="nav"><div><i>💬</i>Chat</div><div class="on"><i>📅</i>Almanaque</div><div><i>☑</i>Listado</div><div><i>⚙</i>Configuración</div></div>
+  <div class="nav"><div><i>💬</i>Chat</div><div><i>📅</i>Almanaque</div><div><i>☑</i>Listado</div><div class="lb on"><i>📒<u>5</u></i>Libreta</div><div><i>⚙</i>Configuración</div></div>
   <div class="sysbar">|||  ◯  ‹</div>
 </div>
-<figcaption><b>Al tocar la libreta flotante</b>
-<ul><li>Se abre una hoja para anotar rápido sin salir de donde estás: elegís la carpeta, si es <b>tarea</b> o <b>nota</b>, escribís o dictás y tocás <b>Anotar</b>.</li>
-<li><b>Abrir libreta</b> te lleva a la libreta completa.</li></ul></figcaption>
+<figcaption><b>Al tocar "Anotar en"</b>
+<ul><li>Sube una hoja con tus carpetas en botones parejos, de a dos. Tocás una y queda elegida.</li>
+<li>Si tenés muchas, se desliza adentro del recuadro.</li>
+<li><b>Crear carpeta nueva</b> la crea y anota ahí.</li></ul></figcaption>
 </figure>
 
 <!-- 4 Listado -->
@@ -300,9 +344,8 @@ figcaption ul{margin:4px 0 0;padding-left:18px;color:var(--muted)}
     <div class="rt"><div class="t">Llamar al contador</div><div class="w"><span>hoy · 17:30 h</span><span>✏️ 🗑</span></div></div>
     <div class="rt"><div class="t">Hacer impresión 3D para depósito de aceite</div><div class="w"><span>hoy · 21:00 h</span><span>✏️ 🗑</span></div></div>
     <div class="rt"><div class="t">Turno médico</div><div class="w"><span>18 nov · 11:00 h</span><span>✏️ 🗑</span></div></div>
-    <div class="fab" tabindex="0" role="button" aria-label="Abrir libreta, 5 pendientes"><span class="ic">📒</span><span class="c">Libreta<span class="pend">5 pendientes</span></span></div>
   </div>
-  <div class="nav"><div><i>💬</i>Chat</div><div><i>📅</i>Almanaque</div><div class="on"><i>☑</i>Listado</div><div><i>⚙</i>Configuración</div></div>
+  <div class="nav"><div><i>💬</i>Chat</div><div><i>📅</i>Almanaque</div><div class="on"><i>☑</i>Listado</div><div class="lb"><i>📒<u>5</u></i>Libreta</div><div><i>⚙</i>Configuración</div></div>
   <div class="sysbar">|||  ◯  ‹</div>
 </div>
 <figcaption><b><span class="n">7</span>Los vencidos con recuadro rojo</b>
