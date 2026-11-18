@@ -7,22 +7,38 @@ import '../../core/settings.dart';
 import '../../core/sheets.dart';
 import '../../data/reminder.dart';
 import '../chat/dictation.dart';
+import '../home/home_shell.dart';
 import '../reminders/reminders_screen.dart' show matchesSearch;
 import 'marquee_text.dart';
 import 'note_input_bar.dart';
 import 'notes.dart';
+import 'quick_note.dart';
 
-Future<void> openNotebook(BuildContext context, AppSettings settings) =>
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => NotebookPage(settings: settings)),
-    );
+/// Va a la solapa "Libreta" de abajo (pedido del usuario: la libreta es una
+/// solapa más). Fuera de la pantalla principal (pruebas) la abre encima.
+Future<void> openNotebook(BuildContext context, AppSettings settings) async {
+  if (HomeShell.goToTab(context, 'Libreta')) return;
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(builder: (_) => NotebookPage(settings: settings)),
+  );
+}
 
 /// Libreta: carpetas (Impresora, Auto…) con cosas para hacer. Arriba, un
-/// buscador que busca en los nombres de las carpetas y en lo anotado.
+/// buscador que busca en los nombres de las carpetas y en lo anotado; abajo,
+/// la barra para anotar rápido ([QuickNoteBar]).
 class NotebookPage extends StatefulWidget {
-  const NotebookPage({super.key, required this.settings, this.speech});
+  const NotebookPage({
+    super.key,
+    required this.settings,
+    this.speech,
+    this.inTab = false,
+  });
 
   final AppSettings settings;
+
+  /// Dentro de la solapa de abajo: sin barra de título propia (ya está la
+  /// de la app).
+  final bool inTab;
 
   /// Para las pruebas.
   final Dictation? speech;
@@ -72,88 +88,95 @@ class _NotebookPageState extends State<NotebookPage> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Libreta')),
-      body: ListenableBuilder(
-        listenable: Listenable.merge([_s, _search]),
-        builder: (context, _) {
-          final q = _search.text.trim();
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
-            children: [
-              TextField(
-                key: const Key('notebook-search'),
-                controller: _search,
-                decoration: InputDecoration(
-                  hintText: 'Buscar en la libreta…',
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  suffixIcon: q.isEmpty
-                      ? null
-                      : IconButton(
-                          tooltip: 'Borrar búsqueda',
-                          icon: const Icon(Icons.close, size: 18),
-                          onPressed: _search.clear,
+      appBar: widget.inTab ? null : AppBar(title: const Text('Libreta')),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListenableBuilder(
+              listenable: Listenable.merge([_s, _search]),
+              builder: (context, _) {
+                final q = _search.text.trim();
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+                  children: [
+                    TextField(
+                      key: const Key('notebook-search'),
+                      controller: _search,
+                      decoration: InputDecoration(
+                        hintText: 'Buscar en la libreta…',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        suffixIcon: q.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: 'Borrar búsqueda',
+                                icon: const Icon(Icons.close, size: 18),
+                                onPressed: _search.clear,
+                              ),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                  isDense: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (q.isNotEmpty)
-                ..._results(q, theme)
-              else ...[
-                Text(
-                  'Tus carpetas. Tocá una para ver lo que tenés para hacer.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                LayoutBuilder(
-                  builder: (context, box) {
-                    // Ancho del nombre: tarjeta menos borde y márgenes.
-                    final nameWidth = (box.maxWidth - 10) / 2 - 4 - 24;
-                    final size = folderNameSize(
-                      MediaQuery.textScalerOf(context),
-                      [for (final f in _s.folders) f.name],
-                      nameWidth,
-                    );
-                    return GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: 1.4,
-                      children: [
-                        for (final f in _s.folders)
-                          _FolderCard(
-                            folder: f,
-                            nameSize: size,
-                            onTap: () => _open(f),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  key: const Key('new-folder'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
-                  ),
-                  icon: const Icon(Icons.create_new_folder_outlined),
-                  label: const Text('Nueva carpeta'),
-                  onPressed: _newFolder,
-                ),
-              ],
-            ],
-          );
-        },
+                    const SizedBox(height: 12),
+                    if (q.isNotEmpty)
+                      ..._results(q, theme)
+                    else ...[
+                      Text(
+                        'Tus carpetas. Tocá una para ver lo que tenés para hacer.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      LayoutBuilder(
+                        builder: (context, box) {
+                          // Ancho del nombre: tarjeta menos borde y márgenes.
+                          final nameWidth = (box.maxWidth - 10) / 2 - 4 - 24;
+                          final size = folderNameSize(
+                            MediaQuery.textScalerOf(context),
+                            [for (final f in _s.folders) f.name],
+                            nameWidth,
+                          );
+                          return GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            childAspectRatio: 1.4,
+                            children: [
+                              for (final f in _s.folders)
+                                _FolderCard(
+                                  folder: f,
+                                  nameSize: size,
+                                  onTap: () => _open(f),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        key: const Key('new-folder'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        icon: const Icon(Icons.create_new_folder_outlined),
+                        label: const Text('Nueva carpeta'),
+                        onPressed: _newFolder,
+                      ),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ),
+          QuickNoteBar(settings: _s, speech: widget.speech),
+        ],
       ),
     );
   }

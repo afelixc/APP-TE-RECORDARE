@@ -6,7 +6,9 @@ import '../../core/app_scope.dart';
 import '../calendar/calendar_screen.dart';
 import '../chat/ai_chat.dart' show talkWhenChatOpens;
 import '../chat/chat_screen.dart';
-import '../notebook/notebook_fab.dart';
+import '../notebook/notebook_page.dart';
+import '../notebook/notes.dart';
+import '../notebook/quick_note.dart';
 import '../notifications/reminder_actions_sheet.dart';
 import '../reminders/reminder_editor.dart';
 import '../reminders/reminders_screen.dart';
@@ -47,6 +49,16 @@ final List<AppTab> appTabs = [
     selectedIcon: Icons.checklist,
     builder: (_) => const RemindersScreen(),
   ),
+  // La libreta como una solapa más, entre Listado y Configuración (pedido
+  // del usuario; antes flotaba). En la barra va en un recuadro amarillo con
+  // lo pendiente en rojo ([_NotebookTabIcon]).
+  AppTab(
+    label: 'Libreta',
+    icon: Icons.menu_book_outlined,
+    selectedIcon: Icons.menu_book,
+    builder: (context) =>
+        NotebookPage(settings: AppScope.of(context).settings, inTab: true),
+  ),
   AppTab(
     label: 'Configuración',
     icon: Icons.settings_outlined,
@@ -65,11 +77,14 @@ class HomeShell extends StatefulWidget {
   final Stream<int> openedReminders;
   final int? launchReminderId;
 
-  /// Cambia de pestaña desde cualquier pantalla (por ejemplo, ir a Configuración).
-  static void goToTab(BuildContext context, String label) {
+  /// Cambia de pestaña desde cualquier pantalla (por ejemplo, ir a
+  /// Configuración). Devuelve false si no está la pantalla principal.
+  static bool goToTab(BuildContext context, String label) {
     final state = context.findAncestorStateOfType<_HomeShellState>();
     final index = appTabs.indexWhere((t) => t.label == label);
-    if (state != null && index >= 0) state._select(index);
+    if (state == null || index < 0) return false;
+    state._select(index);
+    return true;
   }
 
   @override
@@ -79,7 +94,15 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
-  void _select(int i) => setState(() => _index = i);
+  /// Sube cada vez que se toca una solapa: así al volver a entrar (por
+  /// ejemplo a la Libreta) siempre arranca en su pantalla de inicio, sin la
+  /// búsqueda de antes (pedido del usuario).
+  int _visit = 0;
+
+  void _select(int i) => setState(() {
+    _index = i;
+    _visit++;
+  });
 
   /// El micrófono de arriba: con IA va al Chat y escucha; si no, abre la
   /// carga a mano.
@@ -95,7 +118,7 @@ class _HomeShellState extends State<HomeShell> {
 
   /// Deslizar el dedo cambia de solapa y al llegar a la última vuelve a la
   /// primera: hacia la izquierda, la de la derecha (Chat → Almanaque →
-  /// Listado → Configuración → Chat); hacia la derecha, la anterior.
+  /// Listado → Libreta → Configuración → Chat); hacia la derecha, la anterior.
   void _swipe(DragEndDetails d) {
     final v = d.primaryVelocity ?? 0;
     if (v.abs() < 300) return;
@@ -103,9 +126,6 @@ class _HomeShellState extends State<HomeShell> {
     _select((_index + (v < 0 ? 1 : -1) + n) % n);
   }
 
-  /// Dónde está la libreta flotante (desde abajo a la izquierda); se mueve
-  /// arrastrándola.
-  Offset _fab = const Offset(12, 14);
   StreamSubscription<int>? _openedSub;
 
   @override
@@ -166,45 +186,14 @@ class _HomeShellState extends State<HomeShell> {
             ),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, box) {
-          final settings = AppScope.of(context).settings;
-          // Que no se salga de la pantalla.
-          final fab = Offset(
-            _fab.dx.clamp(0, (box.maxWidth - 120).clamp(0, double.infinity)),
-            _fab.dy.clamp(0, (box.maxHeight - 60).clamp(0, double.infinity)),
-          );
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: GestureDetector(
-                  key: const Key('tab-swipe'),
-                  behavior: HitTestBehavior.translucent,
-                  onHorizontalDragEnd: _swipe,
-                  child: KeyedSubtree(
-                    key: ValueKey(_index),
-                    child: tab.builder(context),
-                  ),
-                ),
-              ),
-              // En el Chat ya está el botón grande de la Libreta.
-              if (_index != 0)
-                Positioned(
-                  left: fab.dx,
-                  bottom: fab.dy,
-                  child: GestureDetector(
-                    onPanUpdate: (d) => setState(
-                      () => _fab = Offset(
-                        fab.dx + d.delta.dx,
-                        fab.dy - d.delta.dy,
-                      ),
-                    ),
-                    child: NotebookFab(settings: settings),
-                  ),
-                ),
-            ],
-          );
-        },
+      body: GestureDetector(
+        key: const Key('tab-swipe'),
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragEnd: _swipe,
+        child: KeyedSubtree(
+          key: ValueKey((_index, _visit)),
+          child: tab.builder(context),
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
@@ -213,11 +202,18 @@ class _HomeShellState extends State<HomeShell> {
           for (final t in appTabs)
             _OneLineLabel(
               label: t.label,
-              child: NavigationDestination(
-                icon: Icon(t.icon),
-                selectedIcon: Icon(t.selectedIcon),
-                label: t.label,
-              ),
+              child: t.label == 'Libreta'
+                  ? NavigationDestination(
+                      key: const Key('tab-libreta'),
+                      icon: const _NotebookTabIcon(selected: false),
+                      selectedIcon: const _NotebookTabIcon(selected: true),
+                      label: t.label,
+                    )
+                  : NavigationDestination(
+                      icon: Icon(t.icon),
+                      selectedIcon: Icon(t.selectedIcon),
+                      label: t.label,
+                    ),
             ),
         ],
       ),
@@ -262,6 +258,48 @@ class _OneLineLabel extends StatelessWidget {
           data: MediaQuery.of(context)
               .copyWith(textScaler: TextScaler.linear(fitted / size)),
           child: child,
+        );
+      },
+    );
+  }
+}
+
+/// La Libreta en la barra de abajo: el dibujo en un recuadro amarillo y, si
+/// hay cosas sin hacer, un botoncito rojo con cuántas (pedido del usuario).
+class _NotebookTabIcon extends StatelessWidget {
+  const _NotebookTabIcon({required this.selected});
+
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = AppScope.of(context).settings;
+    final night = Theme.of(context).brightness == Brightness.dark;
+    final fg = night ? const Color(0xFFF0C04A) : notebookColor;
+    return ListenableBuilder(
+      listenable: settings,
+      builder: (context, _) {
+        final toDo = notebookToDo(settings.folders);
+        return Badge(
+          key: const Key('tab-libreta-badge'),
+          isLabelVisible: toDo > 0,
+          backgroundColor: const Color(0xFFD32F2F),
+          textColor: Colors.white,
+          label: Text(toDo > 99 ? '99+' : '$toDo'),
+          offset: const Offset(10, -8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+              color: notebookColor.withValues(alpha: selected ? 0.32 : 0.16),
+              border: Border.all(color: fg, width: 1.6),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              selected ? Icons.menu_book : Icons.menu_book_outlined,
+              color: fg,
+              size: 20,
+            ),
+          ),
         );
       },
     );

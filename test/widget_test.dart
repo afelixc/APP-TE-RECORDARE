@@ -394,7 +394,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Cargar a mano\nrecordatorios'), findsOneWidget);
-    expect(find.text('Libreta'), findsOneWidget);
+    expect(find.byKey(const Key('open-notebook')), findsOneWidget);
     expect(find.text('Todo hecho ✓'), findsOneWidget);
     await tester.tap(find.text('Ejemplos'));
     await tester.pumpAndSettle();
@@ -590,10 +590,17 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.textContaining(title(now)), findsNothing);
-    expect(find.byKey(const Key('notebook-fab')), findsOneWidget);
-    // Listado → Configuración → vuelve a Chat.
+    // Listado → Libreta → Configuración → vuelve a Chat.
     await tester.flingFrom(
       tester.getTopLeft(area) + const Offset(400, 30),
+      const Offset(-300, 0),
+      1000,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('notebook-search')), findsOneWidget);
+    // En la Libreta, debajo del buscador.
+    await tester.flingFrom(
+      tester.getTopLeft(area) + const Offset(400, 200),
       const Offset(-300, 0),
       1000,
     );
@@ -604,18 +611,24 @@ void main() {
       1000,
     );
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('notebook-fab')), findsNothing);
-    // Para el otro lado: Chat → Configuración.
+    expect(find.byKey(const Key('notebook-search')), findsNothing);
+    // Para el otro lado: Chat → Configuración → Libreta.
     await tester.flingFrom(
       tester.getTopLeft(area) + const Offset(400, 30),
       const Offset(300, 0),
       1000,
     );
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('notebook-fab')), findsOneWidget);
+    await tester.flingFrom(
+      tester.getTopLeft(area) + const Offset(400, 30),
+      const Offset(300, 0),
+      1000,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('notebook-search')), findsOneWidget);
   });
 
-  testWidgets('la libreta flotante anota rápido sin salir del almanaque', (
+  testWidgets('la libreta es una solapa de abajo: anota y vuelve al inicio', (
     tester,
   ) async {
     final settings = AppSettings(MemorySettingsStore(), MemoryKeyStore());
@@ -623,12 +636,22 @@ void main() {
       RecordameApp(reminders: MemoryReminderRepository(), settings: settings),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Almanaque'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('notebook-fab')));
+    // Ya no flota: está abajo, entre Listado y Configuración.
+    expect(find.byKey(const Key('notebook-fab')), findsNothing);
+    final bar = find.byType(NavigationBar);
+    double x(String l) =>
+        tester.getCenter(find.descendant(of: bar, matching: find.text(l))).dx;
+    final labels = [
+      for (final l in ['Chat', 'Almanaque', 'Listado', 'Libreta']) x(l),
+    ];
+    for (var i = 1; i < labels.length; i++) {
+      expect(labels[i], greaterThan(labels[i - 1]));
+    }
+    expect(x('Configuración'), greaterThan(labels.last));
+    await tester.tap(find.byKey(const Key('tab-libreta')));
     await tester.pumpAndSettle();
     expect(find.text('Anotar en: General'), findsOneWidget);
-    expect(find.byKey(const Key('quick-cancel')), findsOneWidget);
+    expect(find.byKey(const Key('quick-cancel')), findsNothing);
     await tester.enterText(
       find.byKey(const Key('notebook-input')),
       'Comprar filamento',
@@ -638,9 +661,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(settings.folders.single.items.single.text, 'Comprar filamento');
     expect(find.text('1 pendiente'), findsWidgets);
+    // El botoncito rojo de la solapa muestra lo pendiente.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('tab-libreta-badge')),
+        matching: find.text('1'),
+      ),
+      findsOneWidget,
+    );
+    // Lo buscado no queda al salir y volver a entrar.
+    await tester.enterText(find.byKey(const Key('notebook-search')), 'filam');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Listado'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('tab-libreta')));
+    await tester.pumpAndSettle();
+    final search = tester.widget<TextField>(
+      find.byKey(const Key('notebook-search')),
+    );
+    expect(search.controller!.text, '');
   });
 
-  testWidgets('libreta flotante: carpetas en botones parejos que se deslizan', (
+  testWidgets('libreta: elegir carpeta en botones parejos que se deslizan', (
     tester,
   ) async {
     final settings = AppSettings(MemorySettingsStore(), MemoryKeyStore());
@@ -651,16 +693,11 @@ void main() {
       RecordameApp(reminders: MemoryReminderRepository(), settings: settings),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Almanaque'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('notebook-fab')));
+    await tester.tap(find.byKey(const Key('tab-libreta')));
     await tester.pumpAndSettle();
     expect(find.text('Anotar en: Carpeta 1'), findsOneWidget);
-    // Los botones de arriba miden lo mismo.
-    expect(
-      tester.getSize(find.byKey(const Key('quick-cancel'))),
-      tester.getSize(find.byKey(const Key('quick-open-notebook'))),
-    );
+    await tester.tap(find.byKey(const Key('quick-folder-now')));
+    await tester.pumpAndSettle();
     // Se ven 6; la 7 y la 8 aparecen deslizando adentro del recuadro.
     expect(find.byKey(const Key('quick-folder-7')), findsNothing);
     await tester.drag(
@@ -676,9 +713,18 @@ void main() {
     await tester.tap(find.byKey(const Key('notebook-send')));
     await tester.pumpAndSettle();
     expect(settings.folders.last.items.single.text, 'Pintar');
-    await tester.tap(find.byKey(const Key('quick-cancel')));
+  });
+
+  testWidgets('el botón Libreta del Chat lleva a la solapa', (tester) async {
+    final settings = AppSettings(MemorySettingsStore(), MemoryKeyStore());
+    await tester.pumpWidget(
+      RecordameApp(reminders: MemoryReminderRepository(), settings: settings),
+    );
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('quick-cancel')), findsNothing);
+    await tester.tap(find.byKey(const Key('open-notebook')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('notebook-search')), findsOneWidget);
+    expect(find.byKey(const Key('tab-swipe')), findsOneWidget);
   });
 
   testWidgets(
