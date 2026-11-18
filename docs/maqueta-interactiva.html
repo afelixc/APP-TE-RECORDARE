@@ -46,15 +46,15 @@ button:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--accent);ou
 .bottom{flex:none}
 
 /* Barra de abajo: la elegida se agranda y se destaca */
-.nav{display:grid;grid-template-columns:repeat(5,1fr);background:var(--navbg);padding:6px 2px 6px;border-top:1px solid var(--line);flex:none}
-.nav button{border:0;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;padding:2px 0;font-size:10px;color:var(--muted);white-space:nowrap;min-width:0}
-.nav .ic{display:grid;place-items:center;width:42px;height:28px;border-radius:14px;font-size:17px;position:relative;transition:transform .18s,background .18s}
+.nav{display:grid;grid-template-columns:repeat(5,1fr);background:var(--navbg);padding:8px 2px 6px;border-top:1px solid var(--line);flex:none}
+.nav button{border:0;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 0;font-size:11px;color:var(--muted);white-space:nowrap;min-width:0}
+.nav .ic{display:grid;place-items:center;width:46px;height:32px;border-radius:16px;font-size:20px;position:relative;transition:transform .18s,background .18s}
 .nav .lb{transition:font-size .18s}
 .nav button.on{color:var(--accent);font-weight:900}
 .nav button.on .ic{background:var(--sel);transform:scale(1.25) translateY(-2px);box-shadow:0 2px 6px rgba(0,0,0,.18)}
-.nav button.on .lb{font-size:11.5px}
+.nav button.on .lb{font-size:12.5px}
 .nav button.on::after{content:"";width:22px;height:3px;border-radius:2px;background:var(--accent);margin-top:1px}
-.nav .lib .ic{border:2px solid var(--lib);background:var(--libbg);border-radius:10px;width:38px}
+.nav .lib .ic{border:2px solid var(--lib);background:var(--libbg);border-radius:11px;width:42px}
 .nav button.lib.on{color:var(--lib)}
 .nav button.lib.on .ic{background:var(--libbg);box-shadow:0 0 0 3px var(--sel),0 2px 6px rgba(0,0,0,.18)}
 .nav button.lib.on::after{background:var(--lib)}

@@ -202,20 +202,21 @@ class _HomeShellState extends State<HomeShell> {
           indicatorColor: scheme.primary.withValues(alpha: night ? 0.35 : 0.22),
           iconTheme: WidgetStateProperty.resolveWith(
             (s) => s.contains(WidgetState.selected)
-                ? IconThemeData(size: 30, color: scheme.primary)
-                : IconThemeData(size: 22, color: scheme.onSurfaceVariant),
+                ? IconThemeData(size: 33, color: scheme.primary)
+                : IconThemeData(size: 26, color: scheme.onSurfaceVariant),
           ),
           labelTextStyle: WidgetStateProperty.resolveWith(
             (s) => s.contains(WidgetState.selected)
                 ? TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w900,
                     color: scheme.primary,
                   )
-                : TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                : TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
           ),
         ),
         child: NavigationBar(
+          height: 88,
           selectedIndex: _index,
           onDestinationSelected: _select,
           destinations: [
@@ -318,7 +319,7 @@ class _NotebookTabIcon extends StatelessWidget {
             child: Icon(
               selected ? Icons.menu_book : Icons.menu_book_outlined,
               color: fg,
-              size: selected ? 26 : 20,
+              size: selected ? 29 : 24,
             ),
           ),
         );
