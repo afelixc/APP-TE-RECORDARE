@@ -58,3 +58,4 @@
 Ideas a futuro (el usuario dijo que por ahora no): solapa "Charlar con la IA" (chat general con la misma clave y saldo), mandar el audio a la IA en vez de usar el reconocimiento de voz de Android.
 
 Pendiente de definir con el usuario (después de probar): qué pasa en el calendario al marcar un recordatorio como hecho (dejar con ✓, borrar o no tocar; hoy no se toca).
+- Editar nota (pedido del usuario): el recuadro "Nota" (`note-title`) baja de renglón y crece con el texto hasta el 70% del alto de la pantalla; si es más larga se desliza para arriba (nunca de costado). Editar un ítem de la lista: hasta 8 renglones; título de las notas de texto libre: hasta 3.

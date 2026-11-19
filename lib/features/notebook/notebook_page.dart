@@ -1359,6 +1359,9 @@ class _NoteEditPageState extends State<NoteEditPage> {
           key: const Key('sub-edit'),
           controller: c,
           autofocus: true,
+          minLines: 1,
+          maxLines: 8,
+          keyboardType: TextInputType.multiline,
           textCapitalization: TextCapitalization.sentences,
           onSubmitted: (v) => Navigator.pop(context, v),
         ),
@@ -1402,16 +1405,26 @@ class _NoteEditPageState extends State<NoteEditPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 children: [
-                  TextField(
-                    key: const Key('note-title'),
-                    controller: _title,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Nota',
-                      border: OutlineInputBorder(),
+                  // La nota larga se ve entera: el recuadro crece hacia abajo
+                  // con el texto (no se corre de costado) hasta casi toda la
+                  // pantalla; si es más larga, se desliza hacia arriba.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.sizeOf(context).height * 0.7,
                     ),
-                    onSubmitted: (_) => _saveTitle(),
-                    onTapOutside: (_) => _saveTitle(),
+                    child: TextField(
+                      key: const Key('note-title'),
+                      controller: _title,
+                      minLines: 1,
+                      maxLines: null,
+                      keyboardType: TextInputType.multiline,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        labelText: 'Nota',
+                        border: OutlineInputBorder(),
+                      ),
+                      onTapOutside: (_) => _saveTitle(),
+                    ),
                   ),
                   if (_note.alarm != null) ...[
                     const SizedBox(height: 8),
@@ -1941,6 +1954,8 @@ class _MemoPageState extends State<MemoPage> {
                 TextField(
                   key: const Key('memo-title'),
                   controller: _title,
+                  minLines: 1,
+                  maxLines: 3,
                   textCapitalization: TextCapitalization.sentences,
                   style: const TextStyle(
                     fontSize: 19,
