@@ -1423,6 +1423,9 @@ class _NoteEditPageState extends State<NoteEditPage> {
                         labelText: 'Nota',
                         border: OutlineInputBorder(),
                       ),
+                      // Con varios renglones Enter no "termina": se guarda
+                      // mientras se escribe.
+                      onChanged: (_) => _saveTitle(),
                       onTapOutside: (_) => _saveTitle(),
                     ),
                   ),
