@@ -168,8 +168,8 @@ class BoxCard extends StatelessWidget {
                     // todos los recuadros: la más grande en la que entran.
                     Text(
                       title,
-                      maxLines: 1,
-                      softWrap: false,
+                      // Hasta 3 renglones, con las palabras enteras.
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: name,
@@ -242,7 +242,7 @@ class BoxCard extends StatelessWidget {
 
 /// Alto de cada recuadro (crece un poco con la letra grande del teléfono).
 double boxCardHeight(BuildContext context) =>
-    150 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.5);
+    176 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.5);
 
 /// La letra del nombre de los recuadros: la misma en todos.
 class BoxNameSize extends InheritedWidget {
@@ -257,31 +257,47 @@ class BoxNameSize extends InheritedWidget {
   bool updateShouldNotify(BoxNameSize old) => old.size != size;
 }
 
-/// La letra más grande (hasta 20) en la que cada nombre entra entero en un
-/// renglón de [width]. Los larguísimos (que necesitarían menos de 15) no
-/// achican a los demás: se cortan con "…" y se leen enteros al entrar.
+/// La letra más grande (hasta 20, la misma en todos los recuadros) en la
+/// que cada nombre entra entero en hasta 3 renglones de [width], sin partir
+/// ninguna palabra. Si un nombre no entra ni con 12, no achica a los demás:
+/// se corta con "…" y se lee entero al entrar.
 double boxNameSize(BuildContext context, Iterable<String> names, double width) {
   const top = 20.0;
-  const bottom = 15.0;
+  const bottom = 12.0;
   final scaler = MediaQuery.textScalerOf(context);
-  var size = top;
-  for (final n in names) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: n,
-        style: const TextStyle(fontSize: top, fontWeight: FontWeight.w500),
-      ),
+  bool fits(String name, double size) {
+    final style = TextStyle(fontSize: size, fontWeight: FontWeight.w500);
+    // Ninguna palabra más ancha que el recuadro (no se parte).
+    for (final w in name.split(RegExp(r'\s+'))) {
+      final p = TextPainter(
+        text: TextSpan(text: w, style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      final too = p.width > width;
+      p.dispose();
+      if (too) return false;
+    }
+    final p = TextPainter(
+      text: TextSpan(text: name, style: style.copyWith(height: 1.2)),
       textDirection: TextDirection.ltr,
       textScaler: scaler,
-      maxLines: 1,
-    )..layout();
-    final w = painter.width;
-    painter.dispose();
-    if (w <= width) continue;
-    final fit = top * width / w;
-    if (fit >= bottom && fit < size) size = fit;
+    )..layout(maxWidth: width);
+    final lines = p.computeLineMetrics().length;
+    p.dispose();
+    return lines <= 3;
   }
-  return size.floorToDouble();
+
+  var size = top;
+  for (final n in names) {
+    var s = size;
+    while (s > bottom && !fits(n, s)) {
+      s -= 0.5;
+    }
+    if (fits(n, s)) size = s;
+  }
+  return size;
 }
 
 /// Los recuadros de a dos, todos del mismo tamaño y con la misma letra en

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -456,5 +457,26 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(s.tasks.first.name, 'Agente nuevo');
+  });
+
+  testWidgets('Tareas: el nombre largo de la carpeta se ve entero', (
+    tester,
+  ) async {
+    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
+    const long = 'Claude y cosas para revisar de la compu';
+    s.taskFolders.addAll([TaskFolder(name: long), TaskFolder(name: 'General')]);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TasksScreen(settings: s, reminders: MemoryReminderRepository()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final p = tester.renderObject<RenderParagraph>(find.text(long));
+    expect(p.didExceedMaxLines, isFalse);
+    final a = tester.getSize(find.byKey(const Key('task-folder-$long')));
+    final b = tester.getSize(find.byKey(const Key('task-folder-General')));
+    expect(a.height, b.height);
   });
 }

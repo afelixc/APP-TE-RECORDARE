@@ -255,7 +255,7 @@ class _BottomBar extends StatelessWidget {
                             label: Text(
                               badges[i] > 99 ? '99+' : '${badges[i]}',
                             ),
-                            offset: const Offset(-2, -6),
+                            offset: const Offset(-8, -6),
                             child: Container(
                               width: own ? 52 : 46,
                               height: 32,
