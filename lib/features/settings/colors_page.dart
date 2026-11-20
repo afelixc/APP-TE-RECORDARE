@@ -139,7 +139,8 @@ class _ColorsPageState extends State<ColorsPage> {
               ),
               const SizedBox(height: 14),
               _Box(
-                title: 'Botones de Notas y Tareas',
+                title: 'Botones de abajo',
+                subtitle: 'Notas y Tareas',
                 icon: Icons.space_dashboard_outlined,
                 children: [
                   Text(
@@ -163,7 +164,13 @@ class _ColorsPageState extends State<ColorsPage> {
                   OutlinedButton.icon(
                     key: const Key('tab-colors-reset'),
                     icon: const Icon(Icons.restart_alt),
-                    label: const Text('Volver a los colores de siempre'),
+                    label: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Volver a los colores de siempre',
+                        maxLines: 1,
+                      ),
+                    ),
                     onPressed: settings.resetTabColors,
                   ),
                 ],
@@ -377,27 +384,31 @@ class _DayNightTabs extends StatelessWidget {
                 top: Radius.circular(14),
               ),
               onTap: () => onChanged(isNight),
+              // Más bajita y en un renglón, centrada (pedido del usuario).
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      isNight ? Icons.dark_mode : Icons.light_mode,
-                      color: fg,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isNight ? Icons.dark_mode : Icons.light_mode,
+                        color: fg,
+                        size: 17,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
                         isNight ? 'Colores de NOCHE' : 'Colores de DÍA',
+                        maxLines: 1,
                         style: TextStyle(
                           color: fg,
+                          fontSize: 14,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -460,11 +471,15 @@ class _Box extends StatelessWidget {
     required this.icon,
     required this.children,
     this.note,
+    this.subtitle,
   });
 
   final String title;
   final IconData icon;
   final String? note;
+
+  /// Segundo renglón del título, más chico.
+  final String? subtitle;
   final List<Widget> children;
 
   @override
@@ -492,13 +507,35 @@ class _Box extends StatelessWidget {
               children: [
                 Icon(icon, color: scheme.onPrimaryContainer),
                 const SizedBox(width: 8),
-                Text(
-                  title.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                    color: scheme.onPrimaryContainer,
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Un renglón: si no entra, la letra se achica.
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          title.toUpperCase(),
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                            color: scheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ),
+                      if (subtitle != null)
+                        Text(
+                          subtitle!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: scheme.onPrimaryContainer,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 if (note != null) ...[
@@ -1043,8 +1080,8 @@ class _TabColorRow extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Wrap(
-          spacing: 10,
-          runSpacing: 10,
+          spacing: 4,
+          runSpacing: 4,
           children: [
             for (final c in tabColorChoices)
               Semantics(
@@ -1053,18 +1090,25 @@ class _TabColorRow extends StatelessWidget {
                 label: '$title: color',
                 child: GestureDetector(
                   onTap: () => onPick(c),
+                  // El anillo del elegido va por dentro: no se corta.
                   child: Container(
-                    width: 40,
-                    height: 40,
+                    width: 46,
+                    height: 46,
+                    padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
-                      color: c,
                       shape: BoxShape.circle,
-                      boxShadow: c.toARGB32() == value.toARGB32()
-                          ? [
-                              BoxShadow(color: scheme.surface, spreadRadius: 3),
-                              BoxShadow(color: c, spreadRadius: 5),
-                            ]
-                          : null,
+                      border: Border.all(
+                        color: c.toARGB32() == value.toARGB32()
+                            ? scheme.onSurface
+                            : Colors.transparent,
+                        width: 3,
+                      ),
+                    ),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: c,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
                 ),

@@ -298,7 +298,23 @@ void main() {
     expect(find.textContaining('Todavía no hay carpetas'), findsOneWidget);
     await tester.tap(find.byKey(const Key('tasks-new-folder')));
     await tester.pumpAndSettle();
+    // La muestra cambia en vivo con el nombre.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('box-sample')),
+        matching: find.text('Carpeta nueva'),
+      ),
+      findsOneWidget,
+    );
     await tester.enterText(find.byKey(const Key('box-name')), 'Casa');
+    await tester.pump();
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('box-sample')),
+        matching: find.text('Casa'),
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.byKey(const Key('box-save')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Casa'));

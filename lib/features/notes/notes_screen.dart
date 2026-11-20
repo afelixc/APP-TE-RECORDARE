@@ -343,6 +343,11 @@ class _NotesScreenState extends State<NotesScreen> {
                 titles: [
                   for (final n in items) n.name.isEmpty ? 'Sin título' : n.name,
                 ],
+                extraLine: items.any(
+                  (n) =>
+                      (q.isNotEmpty && n.parent != null) ||
+                      (!n.folder && n.preview.isNotEmpty),
+                ),
                 children: [for (final n in items) _card(n, q.isNotEmpty)],
               ),
           ],

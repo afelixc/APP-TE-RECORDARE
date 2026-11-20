@@ -134,15 +134,15 @@ class BoxCard extends StatelessWidget {
           child: Stack(
             children: [
               Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(
-                      height: 30,
+                      height: 26,
                       child: Row(
                         children: [
-                          Icon(icon, size: 30, color: border),
+                          Icon(icon, size: 26, color: border),
                           if (subfolders > 0) ...[
                             const SizedBox(width: 6),
                             Icon(
@@ -163,13 +163,12 @@ class BoxCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    // El nombre en un solo renglón, con la misma letra en
-                    // todos los recuadros: la más grande en la que entran.
+                    const SizedBox(height: 4),
+                    // El nombre en hasta 2 renglones con las palabras
+                    // enteras, con la misma letra en todos los recuadros.
                     Text(
                       title,
-                      // Hasta 3 renglones, con las palabras enteras.
-                      maxLines: 3,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: name,
@@ -183,11 +182,13 @@ class BoxCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (preview != null && preview!.isNotEmpty) ...[
-                              const SizedBox(height: 3),
+                            if (where == null &&
+                                preview != null &&
+                                preview!.isNotEmpty) ...[
+                              const SizedBox(height: 2),
                               Text(
                                 preview!,
-                                maxLines: 2,
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 12.5,
@@ -211,7 +212,7 @@ class BoxCard extends StatelessWidget {
                     ),
                     // Lo que falta, siempre abajo de todo y alineado.
                     SizedBox(
-                      height: 24,
+                      height: 22,
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
@@ -222,8 +223,8 @@ class BoxCard extends StatelessWidget {
                 ),
               ),
               Positioned(
-                top: 6,
-                right: 4,
+                top: 0,
+                right: 0,
                 child: IconButton(
                   key: gearKey,
                   tooltip: 'Ajustes',
@@ -240,29 +241,49 @@ class BoxCard extends StatelessWidget {
   }
 }
 
-/// Alto de cada recuadro (crece un poco con la letra grande del teléfono).
+/// Alto de cada recuadro: el justo para la carpetita, dos renglones de
+/// nombre (y uno de texto en las notas) y lo que falta, sin espacio de más.
 double boxCardHeight(BuildContext context) =>
-    176 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.5);
+    context.dependOnInheritedWidgetOfExactType<BoxNameSize>()?.height ?? 130;
 
-/// La letra del nombre de los recuadros: la misma en todos.
+double _cardHeight(BuildContext context, double nameSize, bool extraLine) {
+  final scale = MediaQuery.textScalerOf(context).scale(1);
+  return 10 +
+      26 +
+      4 +
+      2 * nameSize * 1.2 * scale +
+      (extraLine ? 4 + 12.5 * 1.4 * scale : 0) +
+      4 +
+      22 +
+      10;
+}
+
+/// La letra del nombre y el alto de los recuadros: lo mismo en todos.
 class BoxNameSize extends InheritedWidget {
-  const BoxNameSize({super.key, required this.size, required super.child});
+  const BoxNameSize({
+    super.key,
+    required this.size,
+    required this.height,
+    required super.child,
+  });
 
   final double size;
+  final double height;
 
   static double of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<BoxNameSize>()?.size ?? 17;
 
   @override
-  bool updateShouldNotify(BoxNameSize old) => old.size != size;
+  bool updateShouldNotify(BoxNameSize old) =>
+      old.size != size || old.height != height;
 }
 
-/// La letra más grande (hasta 20, la misma en todos los recuadros) en la
-/// que cada nombre entra entero en hasta 3 renglones de [width], sin partir
+/// La letra más grande (hasta 19, la misma en todos los recuadros) en la
+/// que cada nombre entra entero en hasta 2 renglones de [width], sin partir
 /// ninguna palabra. Si un nombre no entra ni con 12, no achica a los demás:
 /// se corta con "…" y se lee entero al entrar.
 double boxNameSize(BuildContext context, Iterable<String> names, double width) {
-  const top = 20.0;
+  const top = 19.0;
   const bottom = 12.0;
   final scaler = MediaQuery.textScalerOf(context);
   bool fits(String name, double size) {
@@ -286,7 +307,7 @@ double boxNameSize(BuildContext context, Iterable<String> names, double width) {
     )..layout(maxWidth: width);
     final lines = p.computeLineMetrics().length;
     p.dispose();
-    return lines <= 3;
+    return lines <= 2;
   }
 
   var size = top;
@@ -303,18 +324,30 @@ double boxNameSize(BuildContext context, Iterable<String> names, double width) {
 /// Los recuadros de a dos, todos del mismo tamaño y con la misma letra en
 /// el nombre ([titles], para calcularla).
 class BoxGrid extends StatelessWidget {
-  const BoxGrid({super.key, required this.children, required this.titles});
+  const BoxGrid({
+    super.key,
+    required this.children,
+    required this.titles,
+    this.extraLine = false,
+  });
 
   final List<Widget> children;
   final List<String> titles;
 
+  /// Algún recuadro lleva un renglón más (el comienzo de la nota).
+  final bool extraLine;
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, box) => BoxNameSize(
+    builder: (context, box) {
       // Ancho del recuadro menos los márgenes de adentro.
-      size: boxNameSize(context, titles, (box.maxWidth - 10) / 2 - 28),
-      child: _rows(),
-    ),
+      final size = boxNameSize(context, titles, (box.maxWidth - 10) / 2 - 28);
+      return BoxNameSize(
+        size: size,
+        height: _cardHeight(context, size, extraLine),
+        child: _rows(),
+      );
+    },
   );
 
   Widget _rows() {
@@ -561,19 +594,24 @@ Future<NameColor?> showNameColorSheet(
           button: true,
           child: GestureDetector(
             onTap: tap,
+            // El anillo del elegido va por dentro de los 48: no se corta.
             child: Container(
-              width: 38,
-              height: 38,
+              width: 48,
+              height: 48,
+              padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                color: fill,
                 shape: BoxShape.circle,
-                border: Border.all(color: edge, width: 3),
-                boxShadow: on
-                    ? const [
-                        BoxShadow(color: Colors.white, spreadRadius: 3),
-                        BoxShadow(color: appBlue, spreadRadius: 5),
-                      ]
-                    : null,
+                border: Border.all(
+                  color: on ? appBlue : Colors.transparent,
+                  width: 3,
+                ),
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: fill,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: edge, width: 3),
+                ),
               ),
             ),
           ),
@@ -605,14 +643,37 @@ Future<NameColor?> showNameColorSheet(
                     hintText: folder ? 'Ej: Casa' : 'Título',
                     border: const OutlineInputBorder(),
                   ),
+                  onChanged: (_) => setState(() {}),
                   onSubmitted: (_) => ok(),
+                ),
+                const SizedBox(height: 12),
+                // Así va a quedar: cambia en vivo con el nombre y los colores.
+                Row(
+                  children: [
+                    Text(
+                      'Así queda:',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: _Sample(
+                        key: const Key('box-sample'),
+                        folder: folder,
+                        name: input.text.trim().isEmpty
+                            ? (folder ? 'Carpeta nueva' : 'Sin título')
+                            : input.text.trim(),
+                        color: c,
+                        background: b,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 14),
                 const SectionLabel('Color (nombre, borde y carpetita)'),
                 const SizedBox(height: 8),
                 Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
+                  spacing: 4,
+                  runSpacing: 4,
                   children: [
                     for (final k in boxColors.keys)
                       dot(
@@ -628,8 +689,8 @@ Future<NameColor?> showNameColorSheet(
                 const SectionLabel('Fondo'),
                 const SizedBox(height: 8),
                 Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
+                  spacing: 4,
+                  runSpacing: 4,
                   children: [
                     for (final k in boxBackgrounds.keys)
                       dot(
@@ -675,6 +736,55 @@ final _bigButton = ButtonStyle(
   minimumSize: const WidgetStatePropertyAll(Size.fromHeight(46)),
   textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 16)),
 );
+
+/// Muestra chica de cómo queda el recuadro.
+class _Sample extends StatelessWidget {
+  const _Sample({
+    super.key,
+    required this.folder,
+    required this.name,
+    required this.color,
+    required this.background,
+  });
+
+  final bool folder;
+  final String name;
+  final String color;
+  final String background;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: boxFill(background),
+      border: Border.all(color: boxBorder(color), width: 2),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          folder ? Icons.folder : Icons.description,
+          color: boxBorder(color),
+          size: 24,
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: boxName(color),
+              fontWeight: FontWeight.w500,
+              fontSize: 17,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
 /// Lo que se eligió en el engranaje de un recuadro.
 enum GearAction { rename, move, delete }
