@@ -172,15 +172,22 @@ class NotificationService implements ReminderScheduler {
     body: 'Si ves esto, las notificaciones funcionan.',
   );
 
-  /// Programa un aviso de prueba para dentro de [delay].
-  Future<void> scheduleTest(Duration delay) async {
+  /// Programa un aviso de prueba para dentro de [delay], con lo que hace esa
+  /// prioridad (sonido, cuántas veces, vibrar).
+  Future<void> scheduleTest(
+    Duration delay, {
+    ReminderPriority priority = ReminderPriority.normal,
+  }) async {
     final exact = await _android?.canScheduleExactNotifications() ?? true;
+    final details = await _detailsFor(
+      Reminder(title: 'Prueba', dueAt: DateTime.now(), priority: priority),
+    );
     await _plugin.zonedSchedule(
       id: 0,
-      title: 'Aviso de prueba programado',
-      body: 'Llegó a horario. Las notificaciones programadas funcionan.',
+      title: 'Prueba · prioridad ${priority.label.toLowerCase()}',
+      body: 'Llegó a horario. Así te suena.',
       scheduledDate: tz.TZDateTime.now(tz.local).add(delay),
-      notificationDetails: _details(),
+      notificationDetails: details,
       androidScheduleMode: exact
           ? AndroidScheduleMode.exactAllowWhileIdle
           : AndroidScheduleMode.inexactAllowWhileIdle,
@@ -223,8 +230,6 @@ class NotificationService implements ReminderScheduler {
       tz.setLocalLocation(tz.getLocation('America/Argentina/Buenos_Aires'));
     }
   }
-
-  NotificationDetails _details() => _build(_channel);
 
   List<AndroidNotificationAction> get _actions => [
     const AndroidNotificationAction(ReminderActions.doneActionId, 'Hecho'),
@@ -294,6 +299,20 @@ class NotificationService implements ReminderScheduler {
       h = ((h ^ c) * 0x01000193) & 0xffffffff;
     }
     return h.toRadixString(36);
+  }
+
+  /// Normal: el sonido de la app; sin vibrar, un canal aparte.
+  AndroidNotificationChannel _normalChannel() {
+    if (priorities.normalVibrate) return _channel;
+    return AndroidNotificationChannel(
+      'prio_normal_n',
+      'Prioridad normal (sin vibrar)',
+      description: 'Avisos de prioridad normal, sin vibración',
+      importance: Importance.high,
+      sound: _channel.sound,
+      playSound: _channel.playSound,
+      enableVibration: false,
+    );
   }
 
   AndroidNotificationChannel _mediaChannel() {
@@ -376,8 +395,15 @@ class NotificationService implements ReminderScheduler {
   Future<NotificationDetails> _detailsFor(Reminder r, {int? timeoutMs}) async {
     switch (r.priority) {
       case ReminderPriority.normal:
-        final ch = await _ensure(r.loud ? _loud(_channel) : _channel);
-        return _build(ch, alarm: r.loud);
+        final base = _normalChannel();
+        final ch = await _ensure(r.loud ? _loud(base) : base);
+        final ringing = priorities.normalTimes != 1;
+        return _build(
+          ch,
+          alarm: r.loud,
+          insistent: ringing,
+          timeoutMs: ringing ? _ringMillisFor(r.priority) : timeoutMs,
+        );
       case ReminderPriority.media:
         final base = _mediaChannel();
         final ch = await _ensure(r.loud ? _loud(base) : base);
@@ -406,7 +432,7 @@ class NotificationService implements ReminderScheduler {
   /// Si el aviso de esa prioridad suena varias veces seguidas (o hasta
   /// "Hecho") en vez de una sola.
   bool _rings(ReminderPriority p) => switch (p) {
-    ReminderPriority.normal => false,
+    ReminderPriority.normal => priorities.normalTimes != 1,
     ReminderPriority.media => priorities.mediaTimes != 1,
     ReminderPriority.alta => true,
   };
@@ -415,13 +441,13 @@ class NotificationService implements ReminderScheduler {
   /// segundos, para que no se pise con la repetición. Null = hasta que se
   /// toque "Hecho" (sin límite).
   int? _ringMillisFor(ReminderPriority p) {
-    final times = p == ReminderPriority.alta
-        ? priorities.altaTimes
-        : priorities.mediaTimes;
+    final times = priorities.of(p.index).$1;
     if (times == 0) return null;
-    final one = p == ReminderPriority.alta
-        ? priorities.altaMillis
-        : priorities.mediaMillis;
+    final one = switch (p) {
+      ReminderPriority.normal => 2000,
+      ReminderPriority.media => priorities.mediaMillis,
+      ReminderPriority.alta => priorities.altaMillis,
+    };
     return (one * times + 300).clamp(1000, 55000);
   }
 
@@ -479,7 +505,8 @@ class NotificationService implements ReminderScheduler {
       // con la pantalla apagada.
       final mode = !exact
           ? AndroidScheduleMode.inexactAllowWhileIdle
-          : reminder.priority == ReminderPriority.normal
+          : reminder.priority == ReminderPriority.normal &&
+                priorities.normalEvery == 0
           ? AndroidScheduleMode.exactAllowWhileIdle
           : AndroidScheduleMode.alarmClock;
       final details = await _detailsFor(reminder);
@@ -558,11 +585,12 @@ class NotificationService implements ReminderScheduler {
       final times = repeatTimes(reminder, priorities, now);
       for (var n = 0; n < times.length; n++) {
         final last = n == times.length - 1;
-        final d = reminder.priority == ReminderPriority.media
+        final every = priorities.of(reminder.priority.index).$2;
+        final d = reminder.priority != ReminderPriority.alta
             ? await _detailsFor(
                 reminder,
                 // Cada repetición se va cuando llega la siguiente.
-                timeoutMs: last ? null : priorities.mediaEvery * 60000 - 3000,
+                timeoutMs: last ? null : every * 60000 - 3000,
               )
             : details;
         await post(_repeatBase + id * _slots + n + 1, times[n], d);
@@ -583,11 +611,12 @@ class NotificationService implements ReminderScheduler {
     PriorityConfig config,
     DateTime now,
   ) {
-    if (r.done || r.priority == ReminderPriority.normal) return const [];
-    List<DateTime> repeatsOf(DateTime first) =>
-        r.priority == ReminderPriority.media
-        ? config.mediaRepeats(first)
-        : config.altaRepeats(first);
+    if (r.done) return const [];
+    List<DateTime> repeatsOf(DateTime first) => switch (r.priority) {
+      ReminderPriority.normal => config.normalRepeats(first),
+      ReminderPriority.media => config.mediaRepeats(first),
+      ReminderPriority.alta => config.altaRepeats(first),
+    };
     DateTime? first;
     if (!r.repeats) {
       first = r.dueAt;
@@ -687,7 +716,7 @@ class NotificationService implements ReminderScheduler {
     final ringing = _rings(priority);
     final ring = _ringMillisFor(priority);
     final vibrate = switch (priority) {
-      ReminderPriority.normal => true,
+      ReminderPriority.normal => priorities.normalVibrate,
       ReminderPriority.media => priorities.mediaVibrate,
       ReminderPriority.alta => priorities.altaVibrate,
     };

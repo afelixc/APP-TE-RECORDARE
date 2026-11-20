@@ -689,7 +689,10 @@ class _TasksScreenState extends State<TasksScreen> {
                         ),
                       ),
                     )
-                  : BoxGrid(children: [for (final f in fs) _folderCard(f)]),
+                  : BoxGrid(
+                      titles: [for (final f in fs) f.name],
+                      children: [for (final f in fs) _folderCard(f)],
+                    ),
             );
           } else {
             if (folder == null) {
@@ -700,7 +703,10 @@ class _TasksScreenState extends State<TasksScreen> {
                 children
                   ..add(const SizedBox(height: 12))
                   ..add(
-                    BoxGrid(children: [for (final f in fs) _folderCard(f)]),
+                    BoxGrid(
+                      titles: [for (final f in fs) f.name],
+                      children: [for (final f in fs) _folderCard(f)],
+                    ),
                   );
               }
             }

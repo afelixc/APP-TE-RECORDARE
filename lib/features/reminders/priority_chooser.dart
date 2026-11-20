@@ -35,43 +35,40 @@ class PriorityChooser extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (divider) const Divider(height: 12),
-        Text(
-          'PRIORIDAD',
-          style: theme.textTheme.labelSmall?.copyWith(
-            letterSpacing: 1,
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            color: scheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 4),
+        if (divider) const Divider(height: 14),
+        // "PRIORIDAD" y los tres puntitos: el elegido se agranda y queda
+        // marcado en negro (pedido del usuario).
         Row(
           children: [
-            for (final p in ReminderPriority.values) ...[
-              if (p != ReminderPriority.normal) const SizedBox(width: 6),
-              Expanded(
-                child: PriorityButton(
-                  key: Key('priority-${p.name}'),
-                  label: p.label,
-                  color: priorityColor(p),
-                  selected: priority == p,
-                  onTap: () => onPriority(p),
-                ),
+            Text(
+              'PRIORIDAD',
+              style: theme.textTheme.labelSmall?.copyWith(
+                letterSpacing: 1,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: scheme.onSurface,
               ),
-            ],
+            ),
+            const SizedBox(width: 8),
+            for (final p in ReminderPriority.values)
+              PriorityDot(
+                key: Key('priority-${p.name}'),
+                label: p.label,
+                color: priorityColor(p),
+                selected: priority == p,
+                onTap: () => onPriority(p),
+              ),
           ],
         ),
-        const SizedBox(height: 3),
-        // Un renglón: si no entra, la letra se achica.
+        const SizedBox(height: 2),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(
-            _explain(priority, config),
+            '${priority.label}: ${config.sentence(priority.index)}',
             maxLines: 1,
             style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: 11,
+              fontSize: 12,
               color: scheme.onSurfaceVariant,
             ),
           ),
@@ -83,7 +80,7 @@ class PriorityChooser extends StatelessWidget {
             children: [
               SizedBox(
                 width: 30,
-                height: 28,
+                height: 30,
                 child: Checkbox(
                   value: loud,
                   visualDensity: VisualDensity.compact,
@@ -92,9 +89,11 @@ class PriorityChooser extends StatelessWidget {
               ),
               const Icon(Icons.notifications_off_outlined, size: 16),
               const SizedBox(width: 4),
-              Text(
-                'Sonar aunque esté en silencio',
-                style: theme.textTheme.bodySmall,
+              Flexible(
+                child: Text(
+                  'Sonar aunque esté en silencio',
+                  style: theme.textTheme.bodySmall?.copyWith(fontSize: 13),
+                ),
               ),
             ],
           ),
@@ -102,27 +101,11 @@ class PriorityChooser extends StatelessWidget {
       ],
     );
   }
-
-  static String _explain(ReminderPriority p, PriorityConfig c) => switch (p) {
-    ReminderPriority.normal => 'Avisa una vez, a la hora.',
-    ReminderPriority.media when c.mediaTimes == 0 =>
-      'Suena sin parar hasta "Hecho"${c.mediaVibrate ? ' y vibra' : ''}.',
-    ReminderPriority.media =>
-      '${c.mediaTimes == 1 ? '' : '${PriorityConfig.timesLabel(c.mediaTimes)}; '}'
-          'Repite cada ${c.mediaEvery} min '
-          '${c.mediaInHours ? 'de ${c.mediaFrom} a ${c.mediaTo} h' : 'durante ${PriorityConfig.forLabel(c.mediaFor).toLowerCase()}'}'
-          ', hasta "Hecho".',
-    ReminderPriority.alta when c.altaTimes == 0 =>
-      'Suena sin parar hasta "Hecho"${c.altaVibrate ? ' y vibra' : ''}.',
-    ReminderPriority.alta =>
-      '${PriorityConfig.timesLabel(c.altaTimes)}'
-          '${c.altaVibrate ? ' y vibra' : ''}; repite cada ${c.altaEvery} min '
-          'hasta "Hecho".',
-  };
 }
 
-class PriorityButton extends StatelessWidget {
-  const PriorityButton({
+/// Un puntito de prioridad. Elegido: más grande y con un anillo negro.
+class PriorityDot extends StatelessWidget {
+  const PriorityDot({
     super.key,
     required this.label,
     required this.color,
@@ -137,27 +120,30 @@ class PriorityButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected ? color.withValues(alpha: 0.15) : Colors.transparent,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(
-          color: selected ? color : scheme.outlineVariant,
-          width: 2,
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+    final ring = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : const Color(0xFF1D1D23);
+    final size = selected ? 32.0 : 24.0;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'Prioridad ${label.toLowerCase()}',
+      child: InkResponse(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 5),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              color: selected ? color : scheme.onSurface,
+        radius: 24,
+        child: SizedBox(
+          width: 46,
+          height: 42,
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: selected ? Border.all(color: ring, width: 3) : null,
+              ),
             ),
           ),
         ),

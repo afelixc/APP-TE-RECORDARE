@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_scope.dart';
-import '../../core/fit.dart';
 import '../../core/sheets.dart';
 import '../../data/reminder_repository.dart';
 import '../../data/scheduling_reminder_repository.dart';
@@ -45,17 +44,6 @@ class _NotificationsSectionState extends State<NotificationsSection>
 
   void _refresh() => setState(() => _status = widget.service.status());
 
-  Future<void> _run(Future<void> Function() action, String done) async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await action();
-      messenger.showSnackBar(SnackBar(content: Text(done)));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('No se pudo: $e')));
-    }
-    _refresh();
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -68,176 +56,102 @@ class _NotificationsSectionState extends State<NotificationsSection>
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: FutureBuilder<NotificationStatus>(
-          future: _status,
-          builder: (context, snapshot) {
-            final s = snapshot.data;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text('Notificaciones', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Material(
-                  color: theme.colorScheme.secondaryContainer.withValues(
-                    alpha: 0.5,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  child: ListTile(
-                    leading: const Icon(Icons.music_note),
-                    title: const Text('Sonido del aviso'),
-                    subtitle: Text(service.soundName),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () async {
-                      await showSoundPicker(context, service);
-                      if (mounted) setState(() {});
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-                PrioritiesSection(service: service),
-                const SizedBox(height: 16),
-                if (s == null)
-                  const LinearProgressIndicator()
-                else ...[
-                  _StatusRow(
-                    ok: s.enabled,
-                    okText: 'Notificaciones permitidas',
-                    badText: 'Notificaciones bloqueadas',
-                    actionLabel: 'Permitir',
-                    onAction: () async {
-                      final granted = await service.requestPermission();
-                      if (!granted) await service.openNotificationSettings();
-                      _refresh();
-                    },
-                  ),
-                  _StatusRow(
-                    ok: s.exactAlarms,
-                    okText: 'Avisos a la hora exacta',
-                    badText: 'Avisos a la hora exacta no permitidos',
-                    actionLabel: 'Permitir',
-                    onAction: () async {
-                      await service.requestExactAlarms();
-                      _refresh();
-                    },
-                  ),
-                  if (s.volume != null)
-                    _StatusRow(
-                      ok: s.volume!.notificationsAudible,
-                      okText: s.volume!.notificationsText,
-                      badText: s.volume!.notificationsText,
-                      actionLabel: 'Subir',
-                      onAction: () async {
-                        final ok = await SoundPicker.raiseVolume();
-                        if (!ok) await SoundPicker.openSoundSettings();
-                        _refresh();
-                      },
-                    ),
-                  Text(
-                    'Avisos programados: ${s.pending} · Zona horaria: ${s.timeZone}',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  if (s.lastError != null) ...[
-                    const SizedBox(height: 8),
-                    SelectableText(
-                      'Último error: ${s.lastError}',
-                      style: TextStyle(color: theme.colorScheme.error),
-                    ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            PrioritiesSection(service: service),
+            const SizedBox(height: 4),
+            // Centrado y en un renglón (pedido del usuario).
+            OutlinedButton(
+              key: const Key('battery-help'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(42),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              onPressed: () => showBatteryHelp(context),
+              child: const FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.battery_saver_outlined, size: 20),
+                    SizedBox(width: 8),
+                    Text('Evitar que el teléfono cierre la app', maxLines: 1),
                   ],
-                ],
-                const SizedBox(height: 12),
-                // Centrado y en un renglón (pedido del usuario).
-                OutlinedButton(
-                  key: const Key('battery-help'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(46),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                  onPressed: () => showBatteryHelp(context),
-                  child: const FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.battery_saver_outlined, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'Evitar que el teléfono cierre la app',
-                          maxLines: 1,
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
-                const SizedBox(height: 16),
-                Text('Probar', style: theme.textTheme.labelLarge),
-                const SizedBox(height: 8),
-                // Los dos con la misma letra: la que le entra al más largo.
-                LayoutBuilder(
-                  builder: (context, box) {
-                    final size = sameFontSize(context, const [
-                      'Aviso ahora',
-                      'Aviso en 1 minuto',
-                    ], (box.maxWidth - 8) / 2 - 20);
-                    return Row(
-                      children: [
-                        Expanded(
-                          child: FilledButton.tonal(
-                            style: _testStyle,
-                            onPressed: () async {
-                              String? warning;
-                              await _run(
-                                () async => warning = await service.showTest(),
-                                'Aviso de prueba enviado',
-                              );
-                              if (warning != null && context.mounted) {
-                                showSoundWarning(context, warning!, () async {
-                                  await service.showTest();
-                                  _refresh();
-                                });
-                              }
-                            },
-                            child: Text(
-                              'Aviso ahora',
-                              maxLines: 1,
-                              style: TextStyle(fontSize: size),
-                            ),
-                          ),
+              ),
+            ),
+            // Solo si algo no anda: permisos, volumen o un error.
+            FutureBuilder<NotificationStatus>(
+              future: _status,
+              builder: (context, snapshot) {
+                final s = snapshot.data;
+                if (s == null) return const SizedBox.shrink();
+                final volumeOk = s.volume?.notificationsAudible ?? true;
+                if (s.enabled &&
+                    s.exactAlarms &&
+                    volumeOk &&
+                    s.lastError == null) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (!s.enabled)
+                        _StatusRow(
+                          ok: false,
+                          okText: 'Notificaciones permitidas',
+                          badText: 'Notificaciones bloqueadas',
+                          actionLabel: 'Permitir',
+                          onAction: () async {
+                            final granted = await service.requestPermission();
+                            if (!granted) {
+                              await service.openNotificationSettings();
+                            }
+                            _refresh();
+                          },
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: FilledButton.tonal(
-                            style: _testStyle,
-                            onPressed: () => _run(
-                              () => service.scheduleTest(
-                                const Duration(minutes: 1),
-                              ),
-                              'Te llega un aviso en 1 minuto. Podés cerrar la app.',
-                            ),
-                            child: Text(
-                              'Aviso en 1 minuto',
-                              maxLines: 1,
-                              style: TextStyle(fontSize: size),
-                            ),
-                          ),
+                      if (!s.exactAlarms)
+                        _StatusRow(
+                          ok: false,
+                          okText: 'Avisos a la hora exacta',
+                          badText: 'Avisos a la hora exacta no permitidos',
+                          actionLabel: 'Permitir',
+                          onAction: () async {
+                            await service.requestExactAlarms();
+                            _refresh();
+                          },
                         ),
-                      ],
-                    );
-                  },
-                ),
-              ],
-            );
-          },
+                      if (!volumeOk)
+                        _StatusRow(
+                          ok: false,
+                          okText: s.volume!.notificationsText,
+                          badText: s.volume!.notificationsText,
+                          actionLabel: 'Subir',
+                          onAction: () async {
+                            final ok = await SoundPicker.raiseVolume();
+                            if (!ok) await SoundPicker.openSoundSettings();
+                            _refresh();
+                          },
+                        ),
+                      if (s.lastError != null)
+                        SelectableText(
+                          'Último error: ${s.lastError}',
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
   }
 }
-
-/// Los botones "Probar": el texto en un renglón y bien centrado.
-final _testStyle = FilledButton.styleFrom(
-  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-  alignment: Alignment.center,
-);
 
 /// Cartel cuando el aviso de prueba no se va a escuchar, con "Subir volumen".
 void showSoundWarning(

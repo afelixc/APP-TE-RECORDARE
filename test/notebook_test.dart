@@ -381,4 +381,47 @@ void main() {
     await tester.pumpAndSettle();
     expect((await repo.getById(r.id!))!.done, true);
   });
+
+  testWidgets(
+    'Tareas: recuadros iguales, nombre entero y pendientes alineados',
+    (tester) async {
+      tester.view.physicalSize = const Size(780, 1600);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
+      final now = DateTime.now();
+      final general = TaskFolder(name: 'General', created: now);
+      final impresiones = TaskFolder(
+        name: 'Impresiones',
+        created: now.subtract(const Duration(minutes: 1)),
+      );
+      s.taskFolders.addAll([general, impresiones]);
+      await s.addTasks(general, [for (var i = 0; i < 7; i++) 'Tarea $i']);
+      await s.addTasks(impresiones, ['Una']);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TasksScreen(
+              settings: s,
+              reminders: MemoryReminderRepository(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final a = tester.getRect(find.byKey(const Key('task-folder-General')));
+      final b = tester.getRect(
+        find.byKey(const Key('task-folder-Impresiones')),
+      );
+      expect(a.height, b.height);
+      // "Impresiones" en un renglón: mismo alto que "General".
+      final t1 = tester.getRect(find.text('General'));
+      final t2 = tester.getRect(find.text('Impresiones'));
+      expect(t2.height, closeTo(t1.height, 0.5));
+      final p7 = tester.getRect(find.text('7 pendientes'));
+      final p1 = tester.getRect(find.text('1 pendiente'));
+      expect(p7.center.dy, closeTo(p1.center.dy, 0.5));
+      expect(a.bottom - p7.bottom, lessThan(20));
+    },
+  );
 }

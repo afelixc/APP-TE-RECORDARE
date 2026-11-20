@@ -18,23 +18,31 @@ Color priorityColor(ReminderPriority p) => switch (p) {
 
 String _raw(String id) => 'android.resource://com.afelixc.recordame/raw/$id';
 
-/// Resumen chico de lo que hace cada prioridad.
-String prioritySummary(ReminderPriority p, PriorityConfig c) => switch (p) {
-  ReminderPriority.normal => 'Una vez',
+/// Resumen chico de lo que hace cada prioridad ("1 vez, no repite").
+String prioritySummary(ReminderPriority p, PriorityConfig c) =>
+    c.summary(p.index);
+
+/// Consejo de cómo conviene usar cada prioridad.
+String priorityTip(ReminderPriority p) => switch (p) {
+  ReminderPriority.normal =>
+    'Para la normal se aconseja que suene 1 o 2 veces y que no repita, o que '
+        'repita poco.',
   ReminderPriority.media =>
-    c.mediaTimes == 0
-        ? 'Hasta Hecho'
-        : c.mediaTimes == 1
-        ? 'Cada ${c.mediaEvery} min'
-        : '${c.mediaTimes} veces, cada ${c.mediaEvery} min',
+    'Para la media se aconseja que repita con más frecuencia (cada 5 o 10 '
+        'minutos) hasta que lo atiendas.',
   ReminderPriority.alta =>
-    c.altaTimes == 0
-        ? 'Hasta Hecho'
-        : '${c.altaTimes} ${c.altaTimes == 1 ? 'vez' : 'veces'}, cada ${c.altaEvery} min',
+    'Para la alta se aconseja que suene más veces seguidas (3 o más), que '
+        'repita seguido y en pantalla completa, como una alarma.',
 };
 
-/// "Prioridades de notificaciones": tres ventanitas chicas (cada una abre
-/// sus opciones en grande), "Sonar en modo silencio" y un ejemplo.
+IconData _priorityIcon(ReminderPriority p) => switch (p) {
+  ReminderPriority.normal => Icons.notifications_none,
+  ReminderPriority.media => Icons.notifications_active_outlined,
+  ReminderPriority.alta => Icons.alarm,
+};
+
+/// Notificaciones: "Tocá una prioridad para elegir cómo suena", con Normal,
+/// Media, Alta (cada una abre sus opciones) y el Ejemplo.
 class PrioritiesSection extends StatefulWidget {
   const PrioritiesSection({super.key, required this.service});
 
@@ -59,67 +67,50 @@ class _PrioritiesSectionState extends State<PrioritiesSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Prioridades de notificaciones',
-          style: theme.textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+          'Tocá una prioridad para elegir cómo suena',
+          style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: 8),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final p in ReminderPriority.values) ...[
-                if (p != ReminderPriority.normal) const SizedBox(width: 8),
-                Expanded(
-                  child: _Tile(
-                    key: Key('prio-${p.name}'),
-                    color: priorityColor(p),
-                    title: p.label,
-                    subtitle: prioritySummary(p, c),
-                    onTap: () => _open(
-                      PriorityPage(service: widget.service, priority: p),
-                    ),
-                  ),
-                ),
-              ],
-            ],
+        for (final p in ReminderPriority.values) ...[
+          _PrioRow(
+            key: Key('prio-${p.name}'),
+            color: priorityColor(p),
+            icon: _priorityIcon(p),
+            title: p.label,
+            subtitle: prioritySummary(p, c),
+            onTap: () =>
+                _open(PriorityPage(service: widget.service, priority: p)),
           ),
+          const SizedBox(height: 10),
+        ],
+        _PrioRow(
+          key: const Key('prio-ejemplo'),
+          color: theme.brightness == Brightness.dark
+              ? theme.colorScheme.primary
+              : const Color(0xFF2C3A66),
+          icon: Icons.phone_android,
+          title: 'Ejemplo',
+          subtitle: 'Cómo te llega un aviso',
+          onTap: () => _open(const _ExamplePage()),
         ),
-        const SizedBox(height: 8),
-        Material(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.5,
-          ),
-          borderRadius: BorderRadius.circular(12),
-          child: ListTile(
-            key: const Key('prio-silent'),
-            leading: const Icon(Icons.notifications_off_outlined),
-            title: const Text('Sonar en modo silencio'),
-            subtitle: const Text('Se tilda en cada recordatorio'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _open(const _SilentPage()),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text('Ejemplo: así te llega', style: theme.textTheme.labelLarge),
-        const SizedBox(height: 6),
-        const NotificationExample(),
       ],
     );
   }
 }
 
-class _Tile extends StatelessWidget {
-  const _Tile({
+/// Un renglón de color: dibujo, nombre, resumen y la flechita.
+class _PrioRow extends StatelessWidget {
+  const _PrioRow({
     super.key,
     required this.color,
+    required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
   });
 
   final Color color;
+  final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -136,28 +127,66 @@ class _Tile extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+          child: Row(
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
+              Icon(icon, color: color),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        subtitle,
+                        maxLines: 1,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              Icon(Icons.chevron_right, color: color),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// "Ejemplo": así te llega un aviso.
+class _ExamplePage extends StatelessWidget {
+  const _ExamplePage();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Ejemplo')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('Así te llega un aviso', style: theme.textTheme.bodyLarge),
+          const SizedBox(height: 8),
+          const NotificationExample(),
+          const SizedBox(height: 10),
+          Text(
+            'Tocá HECHO cuando lo hiciste; 1 HORA o MAÑANA lo posponen. '
+            'Tocando el aviso también podés posponerlo 15 minutos.',
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
       ),
     );
   }
@@ -476,231 +505,283 @@ class _PriorityPageState extends State<PriorityPage> {
 
   String _hour(int h) => '${h.toString().padLeft(2, '0')}:00';
 
+  Future<void> _testLater() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await widget.service.scheduleTest(
+        const Duration(seconds: 10),
+        priority: widget.priority,
+      );
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Te llega un aviso en 10 segundos. Podés cerrar la app.',
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('No se pudo: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final p = widget.priority;
+    final color = priorityColor(p);
     final c = _c;
-    final children = <Widget>[];
     final example = DateTime(2026, 1, 1, 10);
     String times(List<DateTime> l) => l.isEmpty
-        ? 'no se repite'
-        : '${l.take(5).map((t) => '${t.hour}:${t.minute.toString().padLeft(2, '0')}').join(' · ')}'
+        ? 'suena a esa hora y no repite'
+        : 'repite a las ${l.take(5).map((t) => '${t.hour}:${t.minute.toString().padLeft(2, '0')}').join(' · ')}'
               '${l.length > 5 ? ' … (${l.length} veces)' : ''}';
 
-    switch (p) {
-      case ReminderPriority.normal:
-        children.addAll([
-          _box([
-            const Text(
-              'Avisa una vez, a la hora del recordatorio, con el sonido '
-              'que elegiste para la app.',
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Sonido de la app: ${widget.service.soundName}. Se cambia en '
-              'Notificaciones → Sonido del aviso.',
-              style: theme.textTheme.bodySmall,
-            ),
-          ]),
-        ]);
-      case ReminderPriority.media:
-        children.addAll([
-          _box([
-            _choice(
-              'Repetir cada',
-              c.mediaEvery,
-              PriorityConfig.everyOptions,
-              (v) => '$v min',
-              (v) => _set(c.copyWith(mediaEvery: v)),
-              key: const Key('media-every'),
-            ),
-            _choice<int>(
-              'Durante',
-              c.mediaInHours ? -1 : c.mediaFor,
-              [...PriorityConfig.mediaForOptions, -1],
-              (v) => v == -1 ? 'En un horario' : PriorityConfig.forLabel(v),
-              (v) => _set(
-                v == -1
-                    ? c.copyWith(mediaInHours: true)
-                    : c.copyWith(mediaInHours: false, mediaFor: v),
-              ),
-              key: const Key('media-for'),
-            ),
-            if (c.mediaInHours) ...[
-              _choice(
-                'Desde',
-                c.mediaFrom,
-                [for (var h = 0; h < 24; h++) h],
-                _hour,
-                (v) => _set(c.copyWith(mediaFrom: v)),
-              ),
-              _choice(
-                'Hasta',
-                c.mediaTo,
-                [for (var h = 1; h <= 24; h++) h],
-                _hour,
-                (v) => _set(c.copyWith(mediaTo: v)),
-              ),
-            ],
-            _timesChoice(
-              c.mediaTimes,
-              (v) => _set(c.copyWith(mediaTimes: v)),
-              key: const Key('media-times'),
-            ),
-            SwitchListTile(
-              key: const Key('media-vibrate'),
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Vibrar'),
-              value: c.mediaVibrate,
-              onChanged: (v) => _set(c.copyWith(mediaVibrate: v)),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Si es a las 10:00: ${times(c.mediaRepeats(example))}.\n'
-              '$_stops',
-              style: theme.textTheme.bodySmall,
-            ),
-          ]),
-          const SizedBox(height: 14),
-          Text(
-            'Sonido de la prioridad media',
-            style: theme.textTheme.titleSmall,
+    final (timesValue, every) = c.of(p.index);
+    final repeats = switch (p) {
+      ReminderPriority.normal => c.normalRepeats(example),
+      ReminderPriority.media => c.mediaRepeats(example),
+      ReminderPriority.alta => c.altaRepeats(example),
+    };
+    final name = p.name;
+    final box = _box([
+      _timesChoice(
+        timesValue,
+        (v) => _set(switch (p) {
+          ReminderPriority.normal => c.copyWith(normalTimes: v),
+          ReminderPriority.media => c.copyWith(mediaTimes: v),
+          ReminderPriority.alta => c.copyWith(altaTimes: v),
+        }),
+        key: Key('$name-times'),
+      ),
+      _choice(
+        'Repetir cada',
+        every,
+        p == ReminderPriority.alta
+            ? PriorityConfig.altaEveryOptions
+            : PriorityConfig.everyOptions,
+        PriorityConfig.everyLabel,
+        (v) => _set(switch (p) {
+          ReminderPriority.normal => c.copyWith(normalEvery: v),
+          ReminderPriority.media => c.copyWith(mediaEvery: v),
+          ReminderPriority.alta => c.copyWith(altaEvery: v),
+        }),
+        key: Key('$name-every'),
+      ),
+      if (every != 0)
+        switch (p) {
+          ReminderPriority.normal => _choice(
+            'Durante',
+            c.normalFor,
+            PriorityConfig.normalForOptions,
+            PriorityConfig.forLabel,
+            (v) => _set(c.copyWith(normalFor: v)),
+            key: const Key('normal-for'),
           ),
-          const SizedBox(height: 6),
-          _sounds(
-            [
-              (
-                PriorityConfig.appSound,
-                'El de la app (${widget.service.soundName})',
-                widget.service.soundUri,
-              ),
-              for (final s in mediaSounds) (s.id, s.name, _raw(s.id)),
-              if (c.mediaPhoneUri != null)
-                (
-                  PriorityConfig.phoneSound,
-                  'Del teléfono: ${c.mediaPhoneName ?? 'sonido elegido'}',
-                  c.mediaPhoneUri,
-                ),
-            ],
-            c.mediaSound,
-            (id) => _set(c.copyWith(mediaSound: id)),
+          ReminderPriority.media => _choice<int>(
+            'Durante',
+            c.mediaInHours ? -1 : c.mediaFor,
+            [...PriorityConfig.mediaForOptions, -1],
+            (v) => v == -1 ? 'En un horario' : PriorityConfig.forLabel(v),
+            (v) => _set(
+              v == -1
+                  ? c.copyWith(mediaInHours: true)
+                  : c.copyWith(mediaInHours: false, mediaFor: v),
+            ),
+            key: const Key('media-for'),
           ),
-          _phoneButton(alta: false),
-        ]);
-      case ReminderPriority.alta:
-        children.addAll([
-          _box([
-            _timesChoice(
-              c.altaTimes,
-              (v) => _set(c.copyWith(altaTimes: v)),
-              key: const Key('alta-times'),
-            ),
-            _choice(
-              'Repetir cada',
-              c.altaEvery,
-              PriorityConfig.altaEveryOptions,
-              (v) => '$v min',
-              (v) => _set(c.copyWith(altaEvery: v)),
-            ),
-            _choice(
-              'Durante',
-              c.altaFor,
-              PriorityConfig.altaForOptions,
-              (v) => PriorityConfig.forLabel(v, alta: true),
-              (v) => _set(c.copyWith(altaFor: v)),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Vibrar fuerte'),
-              value: c.altaVibrate,
-              onChanged: (v) => _set(c.copyWith(altaVibrate: v)),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Pantalla completa, como alarma'),
-              value: c.altaFullScreen,
-              onChanged: (v) async {
-                if (v) await widget.service.requestFullScreen();
-                await _set(c.copyWith(altaFullScreen: v));
-              },
-            ),
-            Text(
-              'Si es a las 10:00: ${times(c.altaRepeats(example))}.\n'
-              '$_stops',
-              style: theme.textTheme.bodySmall,
-            ),
-          ]),
-          const SizedBox(height: 14),
-          Text(
-            'Musiquita de la prioridad alta',
-            style: theme.textTheme.titleSmall,
+          ReminderPriority.alta => _choice(
+            'Durante',
+            c.altaFor,
+            PriorityConfig.altaForOptions,
+            (v) => PriorityConfig.forLabel(v, alta: true),
+            (v) => _set(c.copyWith(altaFor: v)),
+            key: const Key('alta-for'),
           ),
-          const SizedBox(height: 6),
-          _sounds(
-            [
-              for (final s in altaSounds) (s.id, s.name, _raw(s.id)),
-              if (c.altaPhoneUri != null)
-                (
-                  PriorityConfig.phoneSound,
-                  'Del teléfono: ${c.altaPhoneName ?? 'sonido elegido'}',
-                  c.altaPhoneUri,
-                ),
-            ],
-            c.altaSound,
-            (id) => _set(c.copyWith(altaSound: id)),
-          ),
-          _phoneButton(alta: true),
-        ]);
-    }
-    children.addAll([
-      const SizedBox(height: 14),
-      FilledButton.icon(
-        key: const Key('priority-test'),
-        style: FilledButton.styleFrom(backgroundColor: priorityColor(p)),
-        icon: const Icon(Icons.notifications_active_outlined),
-        label: Text(
-          p == ReminderPriority.normal
-              ? 'Probar un aviso'
-              : 'Probar cómo suena (${PriorityConfig.timesShort(p == ReminderPriority.alta ? c.altaTimes : c.mediaTimes)})',
+        },
+      if (p == ReminderPriority.media && every != 0 && c.mediaInHours) ...[
+        _choice(
+          'Desde',
+          c.mediaFrom,
+          [for (var h = 0; h < 24; h++) h],
+          _hour,
+          (v) => _set(c.copyWith(mediaFrom: v)),
         ),
-        onPressed: _test,
+        _choice(
+          'Hasta',
+          c.mediaTo,
+          [for (var h = 1; h <= 24; h++) h],
+          _hour,
+          (v) => _set(c.copyWith(mediaTo: v)),
+        ),
+      ],
+      if (p == ReminderPriority.alta) ...[
+        SwitchListTile(
+          key: const Key('alta-vibrate'),
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Vibrar fuerte'),
+          value: c.altaVibrate,
+          onChanged: (v) => _set(c.copyWith(altaVibrate: v)),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Pantalla completa, como alarma'),
+          value: c.altaFullScreen,
+          onChanged: (v) async {
+            if (v) await widget.service.requestFullScreen();
+            await _set(c.copyWith(altaFullScreen: v));
+          },
+        ),
+      ] else
+        SwitchListTile(
+          key: Key('$name-vibrate'),
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Vibrar'),
+          value: p == ReminderPriority.normal
+              ? c.normalVibrate
+              : c.mediaVibrate,
+          onChanged: (v) => _set(
+            p == ReminderPriority.normal
+                ? c.copyWith(normalVibrate: v)
+                : c.copyWith(mediaVibrate: v),
+          ),
+        ),
+      Text(
+        'Si es a las 10:00: ${times(repeats)}.'
+        '${repeats.isEmpty ? '' : '\n$_stops'}',
+        style: theme.textTheme.bodySmall,
       ),
     ]);
+
+    final tip = Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.tips_and_updates_outlined, size: 18, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(priorityTip(p), style: theme.textTheme.bodySmall),
+          ),
+        ],
+      ),
+    );
+
+    final List<Widget> sound = switch (p) {
+      ReminderPriority.normal => [
+        Card(
+          elevation: 0,
+          margin: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: theme.colorScheme.outlineVariant),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: ListTile(
+            key: const Key('normal-sound'),
+            leading: const Icon(Icons.music_note),
+            title: Text(widget.service.soundName),
+            subtitle: const Text('Tocá para cambiarlo'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () async {
+              await showSoundPicker(context, widget.service);
+              if (mounted) setState(() {});
+            },
+          ),
+        ),
+      ],
+      ReminderPriority.media => [
+        _sounds(
+          [
+            (
+              PriorityConfig.appSound,
+              'El de la app (${widget.service.soundName})',
+              widget.service.soundUri,
+            ),
+            for (final s in mediaSounds) (s.id, s.name, _raw(s.id)),
+            if (c.mediaPhoneUri != null)
+              (
+                PriorityConfig.phoneSound,
+                'Del teléfono: ${c.mediaPhoneName ?? 'sonido elegido'}',
+                c.mediaPhoneUri,
+              ),
+          ],
+          c.mediaSound,
+          (id) => _set(c.copyWith(mediaSound: id)),
+        ),
+        _phoneButton(alta: false),
+      ],
+      ReminderPriority.alta => [
+        _sounds(
+          [
+            for (final s in altaSounds) (s.id, s.name, _raw(s.id)),
+            if (c.altaPhoneUri != null)
+              (
+                PriorityConfig.phoneSound,
+                'Del teléfono: ${c.altaPhoneName ?? 'sonido elegido'}',
+                c.altaPhoneUri,
+              ),
+          ],
+          c.altaSound,
+          (id) => _set(c.copyWith(altaSound: id)),
+        ),
+        _phoneButton(alta: true),
+      ],
+    };
+
+    final testStyle = FilledButton.styleFrom(
+      backgroundColor: color,
+      foregroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+    );
+    final children = <Widget>[
+      box,
+      const SizedBox(height: 10),
+      tip,
+      const SizedBox(height: 14),
+      Text(
+        p == ReminderPriority.alta ? 'Musiquita' : 'Sonido',
+        style: theme.textTheme.titleSmall,
+      ),
+      const SizedBox(height: 6),
+      ...sound,
+      const SizedBox(height: 14),
+      Text('Probar', style: theme.textTheme.titleSmall),
+      const SizedBox(height: 6),
+      Row(
+        children: [
+          Expanded(
+            child: FilledButton(
+              key: const Key('priority-test'),
+              style: testStyle,
+              onPressed: _test,
+              child: const FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text('Aviso ahora', maxLines: 1),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: FilledButton(
+              key: const Key('priority-test-later'),
+              style: testStyle,
+              onPressed: _testLater,
+              child: const FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text('Aviso en 10 segundos', maxLines: 1),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ];
     return Scaffold(
       appBar: AppBar(title: Text('Prioridad ${p.label.toLowerCase()}')),
       body: SafeArea(
         child: ListView(padding: const EdgeInsets.all(16), children: children),
-      ),
-    );
-  }
-}
-
-class _SilentPage extends StatelessWidget {
-  const _SilentPage();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sonar en modo silencio')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            'No está prendido para todos. Lo elegís en cada recordatorio, con '
-            'el tildecito "Sonar aunque esté en silencio" que aparece debajo '
-            'de Normal · Media · Alta.',
-            style: theme.textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Esos avisos suenan con el volumen de la alarma del teléfono, '
-            'como el despertador. Si el volumen de la alarma está en cero, '
-            'no se escuchan.',
-            style: theme.textTheme.bodyMedium,
-          ),
-        ],
       ),
     );
   }

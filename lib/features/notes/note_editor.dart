@@ -640,19 +640,6 @@ class _NoteEditorState extends State<NoteEditor> {
                       ),
                     ),
                     _tool(
-                      'may',
-                      const Text(
-                        'AA',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      on: cur?.upper ?? false,
-                      tip: 'Mayúsculas',
-                      tap: () => _apply((l) => l.copyWith(upper: !l.upper)),
-                    ),
-                    _tool(
                       'sub',
                       const Icon(Icons.format_underlined),
                       on: cur?.underline ?? false,

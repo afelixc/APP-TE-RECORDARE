@@ -127,8 +127,10 @@ class BoxCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 122),
+        child: SizedBox(
+          // Todos del mismo alto (pedido del usuario): lo largo se corta con
+          // "…" y se lee entero al entrar.
+          height: boxCardHeight(context),
           child: Stack(
             children: [
               Padding(
@@ -161,42 +163,61 @@ class BoxCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
+                    // El nombre en un solo renglón, con la misma letra en
+                    // todos los recuadros: la más grande en la que entran.
                     Text(
                       title,
-                      maxLines: 2,
+                      maxLines: 1,
+                      softWrap: false,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: name,
                         fontWeight: FontWeight.w500,
-                        fontSize: 17,
+                        fontSize: BoxNameSize.of(context),
                         height: 1.2,
                       ),
                     ),
-                    if (preview != null && preview!.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        preview!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: scheme.onSurface,
+                    Expanded(
+                      child: ClipRect(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (preview != null && preview!.isNotEmpty) ...[
+                              const SizedBox(height: 3),
+                              Text(
+                                preview!,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: scheme.onSurface,
+                                ),
+                              ),
+                            ],
+                            if (where != null)
+                              Text(
+                                where!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                    ],
-                    if (where != null)
-                      Text(
-                        where!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: scheme.onSurfaceVariant,
-                        ),
+                    ),
+                    // Lo que falta, siempre abajo de todo y alineado.
+                    SizedBox(
+                      height: 24,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: status,
                       ),
-                    const SizedBox(height: 4),
-                    status,
+                    ),
                   ],
                 ),
               ),
@@ -219,14 +240,68 @@ class BoxCard extends StatelessWidget {
   }
 }
 
-/// Los recuadros de a dos, con la misma altura en cada fila.
-class BoxGrid extends StatelessWidget {
-  const BoxGrid({super.key, required this.children});
+/// Alto de cada recuadro (crece un poco con la letra grande del teléfono).
+double boxCardHeight(BuildContext context) =>
+    150 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.5);
 
-  final List<Widget> children;
+/// La letra del nombre de los recuadros: la misma en todos.
+class BoxNameSize extends InheritedWidget {
+  const BoxNameSize({super.key, required this.size, required super.child});
+
+  final double size;
+
+  static double of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<BoxNameSize>()?.size ?? 17;
 
   @override
-  Widget build(BuildContext context) {
+  bool updateShouldNotify(BoxNameSize old) => old.size != size;
+}
+
+/// La letra más grande (hasta 20) en la que cada nombre entra entero en un
+/// renglón de [width]. Los larguísimos (que necesitarían menos de 15) no
+/// achican a los demás: se cortan con "…" y se leen enteros al entrar.
+double boxNameSize(BuildContext context, Iterable<String> names, double width) {
+  const top = 20.0;
+  const bottom = 15.0;
+  final scaler = MediaQuery.textScalerOf(context);
+  var size = top;
+  for (final n in names) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: n,
+        style: const TextStyle(fontSize: top, fontWeight: FontWeight.w500),
+      ),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout();
+    final w = painter.width;
+    painter.dispose();
+    if (w <= width) continue;
+    final fit = top * width / w;
+    if (fit >= bottom && fit < size) size = fit;
+  }
+  return size.floorToDouble();
+}
+
+/// Los recuadros de a dos, todos del mismo tamaño y con la misma letra en
+/// el nombre ([titles], para calcularla).
+class BoxGrid extends StatelessWidget {
+  const BoxGrid({super.key, required this.children, required this.titles});
+
+  final List<Widget> children;
+  final List<String> titles;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) => BoxNameSize(
+      // Ancho del recuadro menos los márgenes de adentro.
+      size: boxNameSize(context, titles, (box.maxWidth - 10) / 2 - 28),
+      child: _rows(),
+    ),
+  );
+
+  Widget _rows() {
     final rows = <Widget>[];
     for (var i = 0; i < children.length; i += 2) {
       if (i > 0) rows.add(const SizedBox(height: 10));

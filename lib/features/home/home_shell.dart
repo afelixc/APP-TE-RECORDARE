@@ -230,69 +230,76 @@ class _BottomBar extends StatelessWidget {
               ? scheme.onSurfaceVariant
               : const Color(0xFF3A3F52);
           return Expanded(
-            child: Semantics(
-              selected: selected,
-              button: true,
-              label: t.label,
-              child: InkWell(
-                key: Key('tab-${t.label}'),
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => onSelect(i),
-                child: AnimatedScale(
-                  scale: selected ? 1.12 : 1,
-                  duration: const Duration(milliseconds: 150),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Badge(
-                          isLabelVisible: badges[i] > 0,
-                          backgroundColor: const Color(0xFFD32F2F),
-                          textColor: Colors.white,
-                          label: Text(badges[i] > 99 ? '99+' : '${badges[i]}'),
-                          offset: const Offset(4, -6),
-                          child: Container(
-                            width: 52,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? c.withValues(alpha: 0.26)
-                                  : own
-                                  ? c.withValues(alpha: 0.12)
-                                  : null,
-                              borderRadius: BorderRadius.circular(16),
-                              border: selected
-                                  ? Border.all(
-                                      color: c.withValues(alpha: 0.55),
-                                      width: 1.5,
-                                    )
-                                  : null,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: own ? 0 : 3),
+              child: Semantics(
+                selected: selected,
+                button: true,
+                label: t.label,
+                child: InkWell(
+                  key: Key('tab-${t.label}'),
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => onSelect(i),
+                  child: AnimatedScale(
+                    scale: selected ? 1.12 : 1,
+                    duration: const Duration(milliseconds: 150),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Badge(
+                            isLabelVisible: badges[i] > 0,
+                            backgroundColor: const Color(0xFFD32F2F),
+                            textColor: Colors.white,
+                            label: Text(
+                              badges[i] > 99 ? '99+' : '${badges[i]}',
                             ),
-                            child: Icon(
-                              selected ? t.selectedIcon : t.icon,
-                              color: c,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            t.label,
-                            maxLines: 1,
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: selected || own ? c : plain,
-                              fontWeight: selected
-                                  ? FontWeight.w700
-                                  : own
-                                  ? FontWeight.w500
-                                  : FontWeight.w400,
+                            offset: const Offset(4, -6),
+                            child: Container(
+                              width: own ? 52 : 46,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? c.withValues(alpha: 0.26)
+                                    : own
+                                    ? c.withValues(alpha: 0.12)
+                                    : null,
+                                borderRadius: BorderRadius.circular(16),
+                                border: selected
+                                    ? Border.all(
+                                        color: c.withValues(alpha: 0.55),
+                                        width: 1.5,
+                                      )
+                                    : null,
+                              ),
+                              child: Icon(
+                                selected ? t.selectedIcon : t.icon,
+                                color: c,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              t.label,
+                              maxLines: 1,
+                              style: TextStyle(
+                                // Mensaje, Almanaque y Listado con la letra
+                                // un poco más chica, así quedan separados.
+                                fontSize: own ? 11.5 : 10.5,
+                                color: selected || own ? c : plain,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : own
+                                    ? FontWeight.w500
+                                    : FontWeight.w400,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

@@ -340,6 +340,9 @@ class _NotesScreenState extends State<NotesScreen> {
               )
             else
               BoxGrid(
+                titles: [
+                  for (final n in items) n.name.isEmpty ? 'Sin título' : n.name,
+                ],
                 children: [for (final n in items) _card(n, q.isNotEmpty)],
               ),
           ],

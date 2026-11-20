@@ -7,6 +7,10 @@ import 'priority_sounds.dart';
 /// alta repiten el aviso hasta que se toque "Hecho".
 class PriorityConfig {
   const PriorityConfig({
+    this.normalTimes = 1,
+    this.normalEvery = 0,
+    this.normalFor = 60,
+    this.normalVibrate = true,
     this.mediaEvery = 5,
     this.mediaFor = 480,
     this.mediaInHours = false,
@@ -29,7 +33,14 @@ class PriorityConfig {
     this.altaPhoneMillis,
   });
 
-  /// Media: cada cuántos minutos repite.
+  /// Normal: cuántas veces suena seguido (1 a [maxTimes]; 0 = hasta
+  /// "Hecho"), cada cuánto repite (0 = no repite), durante cuánto y si vibra.
+  final int normalTimes;
+  final int normalEvery;
+  final int normalFor;
+  final bool normalVibrate;
+
+  /// Media: cada cuántos minutos repite (0 = no repite).
   final int mediaEvery;
 
   /// Media: durante cuántos minutos (0 = todo el día).
@@ -79,9 +90,10 @@ class PriorityConfig {
   bool get mediaFromPhone => mediaSound == phoneSound && mediaPhoneUri != null;
   bool get altaFromPhone => altaSound == phoneSound && altaPhoneUri != null;
 
-  /// Opciones de las listas.
-  static const everyOptions = [3, 5, 10, 15, 30];
-  static const altaEveryOptions = [1, 2, 3, 5, 10];
+  /// Opciones de las listas (0 = "No repetir").
+  static const everyOptions = [0, 3, 5, 10, 15, 30];
+  static const altaEveryOptions = [0, 1, 2, 3, 5, 10];
+  static const normalForOptions = [60, 180, 480, 0];
   static const mediaForOptions = [60, 180, 480, 0];
   static const altaForOptions = [60, 180, 480, 0];
   static const timesOptions = [1, 3, 5];
@@ -105,6 +117,10 @@ class PriorityConfig {
   /// Android deja programar pocos avisos por app: cada recordatorio repite
   /// hasta esta cantidad de veces (después sigue el aviso fijo).
   static const maxRepeats = 48;
+
+  /// "No repetir" o "5 min".
+  static String everyLabel(int minutes) =>
+      minutes == 0 ? 'No repetir' : '$minutes min';
 
   static String forLabel(int minutes, {bool alta = false}) => switch (minutes) {
     0 => alta ? 'Hasta que toque Hecho' : 'Todo el día',
@@ -155,6 +171,10 @@ class PriorityConfig {
             .name;
 
   PriorityConfig copyWith({
+    int? normalTimes,
+    int? normalEvery,
+    int? normalFor,
+    bool? normalVibrate,
     int? mediaEvery,
     int? mediaFor,
     bool? mediaInHours,
@@ -176,6 +196,10 @@ class PriorityConfig {
     String? altaPhoneName,
     int? altaPhoneMillis,
   }) => PriorityConfig(
+    normalTimes: normalTimes ?? this.normalTimes,
+    normalEvery: normalEvery ?? this.normalEvery,
+    normalFor: normalFor ?? this.normalFor,
+    normalVibrate: normalVibrate ?? this.normalVibrate,
     mediaEvery: mediaEvery ?? this.mediaEvery,
     mediaFor: mediaFor ?? this.mediaFor,
     mediaInHours: mediaInHours ?? this.mediaInHours,
@@ -199,6 +223,10 @@ class PriorityConfig {
   );
 
   Map<String, dynamic> toJson() => {
+    'nVeces': normalTimes,
+    'nCada': normalEvery,
+    'nDurante': normalFor,
+    'nVibrar': normalVibrate,
     'mCada': mediaEvery,
     'mDurante': mediaFor,
     'mHorario': mediaInHours,
@@ -233,6 +261,10 @@ class PriorityConfig {
       String s(String k, String def) => j[k] is String ? j[k] as String : def;
       String? o(String k) => j[k] is String ? j[k] as String : null;
       return PriorityConfig(
+        normalTimes: clampTimes(i('nVeces', d.normalTimes)),
+        normalEvery: i('nCada', d.normalEvery),
+        normalFor: i('nDurante', d.normalFor),
+        normalVibrate: b('nVibrar', d.normalVibrate),
         mediaEvery: i('mCada', d.mediaEvery),
         mediaFor: i('mDurante', d.mediaFor),
         mediaInHours: b('mHorario', d.mediaInHours),
@@ -263,7 +295,7 @@ class PriorityConfig {
   /// [first] (sin contar ese primer aviso).
   List<DateTime> mediaRepeats(DateTime first) {
     // Suena sin parar hasta "Hecho": no hace falta repetir.
-    if (mediaTimes == 0) return const [];
+    if (mediaTimes == 0 || mediaEvery <= 0) return const [];
     final every = Duration(minutes: mediaEvery);
     final DateTime end;
     var start = first.add(every);
@@ -284,12 +316,45 @@ class PriorityConfig {
 
   /// Horas en las que vuelve a sonar un aviso de prioridad alta.
   List<DateTime> altaRepeats(DateTime first) {
-    if (altaTimes == 0) return const [];
+    if (altaTimes == 0 || altaEvery <= 0) return const [];
     final every = Duration(minutes: altaEvery);
     final end = altaFor == 0
         ? first.add(every * maxRepeats)
         : first.add(Duration(minutes: altaFor));
     return _steps(first.add(every), end, every);
+  }
+
+  /// Horas en las que vuelve a sonar un aviso de prioridad normal.
+  List<DateTime> normalRepeats(DateTime first) {
+    if (normalTimes == 0 || normalEvery <= 0) return const [];
+    final every = Duration(minutes: normalEvery);
+    final end = normalFor == 0
+        ? DateTime(first.year, first.month, first.day, 23, 59)
+        : first.add(Duration(minutes: normalFor));
+    return _steps(first.add(every), end, every);
+  }
+
+  /// Cuántas veces suena seguido y cada cuánto repite cada prioridad.
+  (int times, int every) of(int priorityIndex) => switch (priorityIndex) {
+    0 => (normalTimes, normalEvery),
+    1 => (mediaTimes, mediaEvery),
+    _ => (altaTimes, altaEvery),
+  };
+
+  /// Resumen de una prioridad: "1 vez, no repite", "3 veces, cada 3 min".
+  String summary(int priorityIndex) {
+    final (times, every) = of(priorityIndex);
+    if (times == 0) return 'Hasta Hecho';
+    final t = times == 1 ? '1 vez' : '$times veces';
+    return every == 0 ? '$t, no repite' : '$t, cada $every min';
+  }
+
+  /// Lo que hace, en una frase: "Suena 1 vez, a la hora."
+  String sentence(int priorityIndex) {
+    final (times, every) = of(priorityIndex);
+    if (times == 0) return 'Suena hasta que lo apagues.';
+    final t = times == 1 ? 'Suena 1 vez' : 'Suena $times veces';
+    return every == 0 ? '$t, a la hora.' : '$t, cada $every minutos.';
   }
 
   static List<DateTime> _steps(DateTime start, DateTime end, Duration every) {

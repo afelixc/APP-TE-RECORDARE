@@ -185,11 +185,19 @@ void _sampleNotesAndTasks(AppSettings s) {
   ]);
   final general = TaskFolder(name: 'General', created: now);
   final hogar = TaskFolder(name: 'Casa', created: ago(1));
-  s.taskFolders.addAll([general, hogar]);
+  final impresiones = TaskFolder(name: 'Impresiones', created: ago(2));
+  final largo = TaskFolder(
+    name: 'Claude y cosas para revisar de la compu',
+    created: ago(3),
+  );
+  s.taskFolders.addAll([general, hogar, impresiones, largo]);
   s.tasks.addAll([
     TaskItem(name: 'Comprar filamento', folder: general.id),
     TaskItem(name: 'Pagar el gas', folder: general.id),
     TaskItem(name: 'Arreglar la persiana', folder: hogar.id),
     TaskItem(name: 'Sacar la basura', folder: hogar.id, done: true),
+    for (var i = 1; i <= 5; i++)
+      TaskItem(name: 'Revisar la impresora $i', folder: impresiones.id),
+    TaskItem(name: 'Ver lo del agente', folder: largo.id),
   ]);
 }

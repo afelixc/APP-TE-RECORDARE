@@ -219,9 +219,7 @@ void main() {
     await db.close();
   });
 
-  testWidgets('Configuración: tres ventanitas que abren cada prioridad', (
-    tester,
-  ) async {
+  testWidgets('Notificaciones: Normal, Media, Alta y Ejemplo', (tester) async {
     final service = NotificationService.instance;
     await tester.pumpWidget(
       MaterialApp(
@@ -232,12 +230,34 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Prioridades de notificaciones'), findsOneWidget);
+    expect(
+      find.text('Tocá una prioridad para elegir cómo suena'),
+      findsOneWidget,
+    );
     expect(find.text('Normal'), findsOneWidget);
     expect(find.text('Media'), findsOneWidget);
     expect(find.text('Alta'), findsOneWidget);
-    expect(find.text('Sonar en modo silencio'), findsOneWidget);
+    expect(find.text('1 vez, no repite'), findsOneWidget);
+    expect(find.text('3 veces, cada 3 min'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('prio-ejemplo')));
+    await tester.pumpAndSettle();
+    expect(find.text('Así te llega un aviso'), findsOneWidget);
     expect(find.text('HECHO'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('prio-normal')));
+    await tester.pumpAndSettle();
+    expect(find.text('Prioridad normal'), findsOneWidget);
+    expect(find.text('Cuántas veces suena'), findsOneWidget);
+    expect(find.text('No repetir'), findsOneWidget);
+    expect(find.textContaining('suena a esa hora y no repite'), findsOneWidget);
+    expect(find.textContaining('Para la normal se aconseja'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Aviso en 10 segundos'), 200);
+    expect(find.text('Aviso ahora'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('prio-alta')));
     await tester.pumpAndSettle();
@@ -343,5 +363,38 @@ void main() {
     const c = PriorityConfig(mediaTimes: 0, altaTimes: 0);
     expect(c.mediaRepeats(ten), isEmpty);
     expect(c.altaRepeats(ten), isEmpty);
+  });
+
+  test('normal: puede sonar varias veces y repetir; "No repetir" en todas', () {
+    final ten = DateTime(2026, 1, 1, 10);
+    const d = PriorityConfig();
+    expect(d.normalRepeats(ten), isEmpty);
+    expect(d.summary(0), '1 vez, no repite');
+    expect(d.sentence(0), 'Suena 1 vez, a la hora.');
+    const c = PriorityConfig(
+      normalTimes: 2,
+      normalEvery: 10,
+      normalFor: 60,
+      normalVibrate: false,
+      mediaEvery: 0,
+    );
+    expect(c.normalRepeats(ten).length, 6);
+    expect(c.mediaRepeats(ten), isEmpty);
+    expect(c.summary(0), '2 veces, cada 10 min');
+    final back = PriorityConfig.decode(c.encode());
+    expect(back.normalTimes, 2);
+    expect(back.normalEvery, 10);
+    expect(back.normalVibrate, isFalse);
+    expect(back.mediaEvery, 0);
+    // Un recordatorio normal también repite.
+    final r = Reminder(id: 1, title: 'x', dueAt: ten);
+    expect(
+      NotificationService.repeatTimes(
+        r,
+        c,
+        ten.subtract(const Duration(hours: 1)),
+      ),
+      hasLength(6),
+    );
   });
 }
