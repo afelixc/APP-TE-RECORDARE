@@ -152,11 +152,16 @@ class _MonthHeader extends StatelessWidget {
           icon: const Icon(Icons.chevron_left),
           onPressed: onPrevious,
         ),
+        // En un renglón: con letra grande, se achica en vez de bajar.
         Expanded(
-          child: Text(
-            title,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              title,
+              maxLines: 1,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
           ),
         ),
         IconButton(
@@ -194,31 +199,49 @@ class _MonthGrid extends StatelessWidget {
     final days = DateTime(month.year, month.month + 1, 0).day;
     const names = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
-    return GridView.count(
-      crossAxisCount: 7,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 0.95,
-      children: [
-        for (final n in names)
-          Center(
-            child: Text(
-              n,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: scheme.onSurfaceVariant,
+    // Las letras de los días en un renglón bajito, pegado al mes (antes
+    // ocupaban un casillero entero y quedaba mucho espacio).
+    final header = Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          for (final n in names)
+            Expanded(
+              child: Center(
+                child: Text(
+                  n,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
               ),
             ),
-          ),
-        for (var i = 0; i < leading; i++) const SizedBox.shrink(),
-        for (var d = 1; d <= days; d++)
-          _DayCell(
-            day: DateTime(month.year, month.month, d),
-            isToday: DateTime(month.year, month.month, d) == today,
-            isSelected: DateTime(month.year, month.month, d) == selected,
-            count: counts[DateTime(month.year, month.month, d)] ?? 0,
-            onTap: onSelect,
-          ),
+        ],
+      ),
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        header,
+        GridView.count(
+          crossAxisCount: 7,
+          shrinkWrap: true,
+          padding: EdgeInsets.zero,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: 1.1,
+          children: [
+            for (var i = 0; i < leading; i++) const SizedBox.shrink(),
+            for (var d = 1; d <= days; d++)
+              _DayCell(
+                day: DateTime(month.year, month.month, d),
+                isToday: DateTime(month.year, month.month, d) == today,
+                isSelected: DateTime(month.year, month.month, d) == selected,
+                count: counts[DateTime(month.year, month.month, d)] ?? 0,
+                onTap: onSelect,
+              ),
+          ],
+        ),
       ],
     );
   }

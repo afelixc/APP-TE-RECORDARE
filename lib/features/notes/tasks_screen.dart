@@ -395,6 +395,15 @@ class _TasksScreenState extends State<TasksScreen> {
     ),
   );
 
+  /// Abre la tarea con el texto entero (se puede cambiar ahí mismo).
+  Future<void> _openTask(TaskItem t) async {
+    final changed = await Navigator.of(context)
+        .push<String>(MaterialPageRoute(builder: (_) => TaskPage(task: t)));
+    if (changed == null || changed.trim().isEmpty || changed == t.name) return;
+    _edit.text = changed.trim();
+    await _saveEdit(t);
+  }
+
   Widget _row(
     TaskItem t,
     int i,
@@ -419,44 +428,60 @@ class _TasksScreenState extends State<TasksScreen> {
             onSubmitted: (_) => _saveEdit(t),
             onTapOutside: (_) => _saveEdit(t),
           )
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                t.name,
-                style: TextStyle(
-                  fontSize: 15.5,
-                  decoration: t.done ? TextDecoration.lineThrough : null,
-                  color: t.done ? const Color(0xFF888888) : scheme.onSurface,
-                ),
-              ),
-              if (r != null && !r.done && !t.done)
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.notifications_active,
-                      size: 15,
-                      color: Color(0xFFB26A00),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      Fmt.when(r.dueAt),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFFB26A00),
-                      ),
-                    ),
-                  ],
-                ),
-              if (searching && _folder == null)
+        : GestureDetector(
+            key: Key('task-open-${t.name}'),
+            behavior: HitTestBehavior.opaque,
+            // Todas del mismo alto: lo largo se corta con "…" y al tocarla
+            // se abre con el texto entero (pedido del usuario).
+            onTap: () => _openTask(t),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  'en ${_find(t.folder)?.name ?? ''}',
+                  t.name,
+                  maxLines:
+                      (r != null && !r.done && !t.done) ||
+                          (searching && _folder == null)
+                      ? 1
+                      : 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12,
-                    color: scheme.onSurfaceVariant,
+                    fontSize: 15.5,
+                    decoration: t.done ? TextDecoration.lineThrough : null,
+                    color: t.done ? const Color(0xFF888888) : scheme.onSurface,
                   ),
                 ),
-            ],
+                if (r != null && !r.done && !t.done)
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.notifications_active,
+                        size: 15,
+                        color: Color(0xFFB26A00),
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        Fmt.when(r.dueAt),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFFB26A00),
+                        ),
+                      ),
+                    ],
+                  ),
+                if (searching && _folder == null)
+                  Text(
+                    'en ${_find(t.folder)?.name ?? ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
           );
     final actions = t.done
         ? [
@@ -524,18 +549,19 @@ class _TasksScreenState extends State<TasksScreen> {
           ];
     return Container(
       key: Key('task-${t.name}'),
-      decoration: BoxDecoration(
-        color: open
-            ? (night ? const Color(0xFF353B52) : const Color(0xFFDFE3EF))
-            : null,
-        border: i == 0
-            ? null
-            : const Border(top: BorderSide(color: Color(0xFFF1E8C8))),
-      ),
+      color: open
+          ? (night ? const Color(0xFF353B52) : const Color(0xFFDFE3EF))
+          : null,
+      // La rayita de arriba no suma alto: todas miden lo mismo.
+      foregroundDecoration: i == 0
+          ? null
+          : const BoxDecoration(
+              border: Border(top: BorderSide(color: Color(0xFFF1E8C8))),
+            ),
       child: Column(
         children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 52),
+          SizedBox(
+            height: taskRowHeight(context),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
               child: Row(
@@ -827,4 +853,65 @@ class _TasksScreenState extends State<TasksScreen> {
       ),
     );
   }
+}
+
+/// Alto de cada tarea: dos renglones, igual en todas (crece un poco con la
+/// letra grande del teléfono).
+double taskRowHeight(BuildContext context) =>
+    64 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
+
+/// Una tarea con el texto entero. Se puede cambiar; se guarda al volver.
+class TaskPage extends StatefulWidget {
+  const TaskPage({super.key, required this.task});
+
+  final TaskItem task;
+
+  @override
+  State<TaskPage> createState() => _TaskPageState();
+}
+
+class _TaskPageState extends State<TaskPage> {
+  late final _text = TextEditingController(text: widget.task.name);
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    canPop: false,
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop) Navigator.of(context).pop(_text.text);
+    },
+    child: Scaffold(
+      appBar: AppBar(title: const Text('Tarea')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          TextField(
+            key: const Key('task-full'),
+            controller: _text,
+            minLines: 3,
+            maxLines: null,
+            textCapitalization: TextCapitalization.sentences,
+            style: TextStyle(
+              fontSize: 18,
+              decoration: widget.task.done ? TextDecoration.lineThrough : null,
+            ),
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            widget.task.done
+                ? 'Está en Completadas.'
+                : 'Se guarda al volver. Para tildarla, subirla o borrarla usá '
+                      'el engranaje de la lista.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    ),
+  );
 }

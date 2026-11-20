@@ -192,6 +192,12 @@ void _sampleNotesAndTasks(AppSettings s) {
   );
   s.taskFolders.addAll([general, hogar, impresiones, largo]);
   s.tasks.addAll([
+    TaskItem(
+      name:
+          'Agente para que estén monitoreando todas las conversaciones y '
+          'vaya dejando un historial limpito que lo vaya guardando',
+      folder: general.id,
+    ),
     TaskItem(name: 'Comprar filamento', folder: general.id),
     TaskItem(name: 'Pagar el gas', folder: general.id),
     TaskItem(name: 'Arreglar la persiana', folder: hogar.id),

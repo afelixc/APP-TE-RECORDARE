@@ -424,4 +424,37 @@ void main() {
       expect(a.bottom - p7.bottom, lessThan(20));
     },
   );
+
+  testWidgets('Tareas: todas del mismo alto; la larga se abre entera', (
+    tester,
+  ) async {
+    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
+    final f = TaskFolder(name: 'Claude');
+    s.taskFolders.add(f);
+    const long =
+        'Agente para que estén monitoreando todas las conversaciones y vaya '
+        'dejando un historial limpito que lo vaya guardando';
+    await s.addTasks(f, [long, 'Corta']);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TasksScreen(settings: s, reminders: MemoryReminderRepository()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Claude'));
+    await tester.pumpAndSettle();
+    final a = tester.getSize(find.byKey(const Key('task-$long')));
+    final b = tester.getSize(find.byKey(const Key('task-Corta')));
+    expect(a.height, b.height);
+    await tester.tap(find.byKey(const Key('task-open-$long')));
+    await tester.pumpAndSettle();
+    final field = tester.widget<TextField>(find.byKey(const Key('task-full')));
+    expect(field.controller!.text, long);
+    await tester.enterText(find.byKey(const Key('task-full')), 'Agente nuevo');
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(s.tasks.first.name, 'Agente nuevo');
+  });
 }
