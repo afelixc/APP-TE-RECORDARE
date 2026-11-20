@@ -1,11 +1,12 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../features/chat/dictation.dart';
 import '../features/notebook/notes.dart';
+import '../features/notes/boxes.dart';
 import 'palette.dart';
 
 enum UsageMode { free, ai }
@@ -164,123 +165,96 @@ class AppSettings extends ChangeNotifier {
 
   Future<void> clearChat() async {
     chatHistory.clear();
+    notifyListeners();
     await _saveChat();
   }
 
-  // --- Libreta: carpetas con cosas para hacer ---
+  // --- Notas y Tareas (reemplazan a la Libreta) ---
 
-  final List<NoteFolder> folders = [];
+  /// Carpetas y notas de la solapa Notas.
+  final List<NoteBox> notes = [];
 
-  Future<NoteFolder> addFolder(String name, int color) async {
-    final f = NoteFolder(name, color: color);
-    folders.add(f);
-    await saveNotes();
-    return f;
-  }
+  /// Carpetas y tareas de la solapa Tareas (en el orden del usuario).
+  final List<TaskFolder> taskFolders = [];
+  final List<TaskItem> tasks = [];
 
-  Future<void> deleteFolder(NoteFolder f) async {
-    folders.remove(f);
-    await saveNotes();
-  }
+  /// Colores de los botones de Notas y Tareas en la barra de abajo
+  /// (Configuración → Colores).
+  static const defaultNotesColor = Color(0xFFD99A00);
+  static const defaultTasksColor = Color(0xFF2E8B57);
+  Color notesColor = defaultNotesColor;
+  Color tasksColor = defaultTasksColor;
 
-  /// Suma cosas al final de los pendientes (antes de los hechos).
-  Future<List<NoteItem>> addNotes(NoteFolder f, Iterable<String> texts) async {
-    final now = DateTime.now();
-    final added = [for (final t in texts) NoteItem(t, at: now)];
-    final firstDone = f.items.indexWhere((n) => n.done);
-    f.items.insertAll(firstDone < 0 ? f.items.length : firstDone, added);
-    await saveNotes();
-    return added;
-  }
-
-  /// Hecho va al principio de los hechos; deshecho, al final de pendientes.
-  Future<NoteItem> setNoteDone(NoteFolder f, NoteItem n, bool done) async {
-    f.items.remove(n);
-    final updated = n.copyWith(done: done);
-    final firstDone = f.items.indexWhere((x) => x.done);
-    f.items.insert(firstDone < 0 ? f.items.length : firstDone, updated);
-    await saveNotes();
-    return updated;
-  }
-
-  /// Sube (-1) o baja (+1) entre los de su misma lista.
-  Future<void> moveNote(NoteFolder f, NoteItem n, int dir) async {
-    final i = f.items.indexOf(n);
-    final j = i + dir;
-    if (i < 0 || j < 0 || j >= f.items.length) return;
-    if (f.items[j].done != n.done) return;
-    f.items[i] = f.items[j];
-    f.items[j] = n;
-    await saveNotes();
-  }
-
-  Future<int> removeNote(NoteFolder f, NoteItem n) async {
-    final i = f.items.indexOf(n);
-    f.items.remove(n);
-    await saveNotes();
-    return i;
-  }
-
-  Future<void> insertNote(NoteFolder f, int index, NoteItem n) async {
-    f.items.insert(index.clamp(0, f.items.length), n);
-    await saveNotes();
-  }
-
-  Future<NoteItem> setNoteAlarm(NoteFolder f, NoteItem n, DateTime at) async {
-    final updated = n.copyWith(alarm: at);
-    final i = f.items.indexOf(n);
-    if (i >= 0) f.items[i] = updated;
-    await saveNotes();
-    return updated;
-  }
-
-  /// Cambia una nota (texto o la lista de adentro) sin moverla de lugar.
-  Future<NoteItem> replaceNote(
-    NoteFolder f,
-    NoteItem n,
-    NoteItem updated,
-  ) async {
-    final i = f.items.indexOf(n);
-    if (i >= 0) f.items[i] = updated;
-    await saveNotes();
-    return updated;
-  }
-
-  /// Guarda una nota de texto libre: si es nueva va primera; si quedó
-  /// vacía se borra. Devuelve la guardada (o null si se borró).
-  Future<Memo?> saveMemo(NoteFolder f, Memo? old, Memo updated) async {
-    final i = old == null ? -1 : f.memos.indexOf(old);
-    if (updated.isEmpty) {
-      if (i >= 0) f.memos.removeAt(i);
-      await saveNotes();
-      return null;
-    }
-    if (i >= 0) {
-      f.memos[i] = updated;
-    } else {
-      f.memos.insert(0, updated);
-    }
-    await saveNotes();
-    return updated;
-  }
-
-  Future<int> removeMemo(NoteFolder f, Memo m) async {
-    final i = f.memos.indexOf(m);
-    f.memos.remove(m);
-    await saveNotes();
-    return i;
-  }
-
-  Future<void> insertMemo(NoteFolder f, int index, Memo m) async {
-    f.memos.insert(index.clamp(0, f.memos.length), m);
-    await saveNotes();
-  }
-
-  /// Guarda la libreta (también después de cambiar nombre o color).
-  Future<void> saveNotes() async {
+  Future<void> setTabColors({Color? notes, Color? tasks}) async {
+    if (notes != null) notesColor = notes;
+    if (tasks != null) tasksColor = tasks;
+    _tabColorsRaw = jsonEncode({
+      'notas': notesColor.toARGB32(),
+      'tareas': tasksColor.toARGB32(),
+    });
     notifyListeners();
-    await _store.write('libreta', NoteFolder.encodeAll(folders));
+    await _store.write('colores_barra', _tabColorsRaw!);
   }
+
+  Future<void> resetTabColors() =>
+      setTabColors(notes: defaultNotesColor, tasks: defaultTasksColor);
+
+  /// Tareas sin hacer (el número rojo de Tareas).
+  int get tasksToDo => tasks.where((t) => !t.done).length;
+
+  Future<void> saveNoteBoxes() async {
+    notifyListeners();
+    await _store.write('notas', NoteBox.encodeAll(notes));
+  }
+
+  Future<void> saveTasks() async {
+    notifyListeners();
+    await _store.write('tareas', encodeTasks(taskFolders, tasks));
+  }
+
+  /// Borra una carpeta o nota con todo lo de adentro.
+  Future<void> deleteNoteBox(NoteBox n) async {
+    final ids = {n.id, for (final x in notesInside(notes, n.id)) x.id};
+    notes.removeWhere((x) => ids.contains(x.id));
+    await saveNoteBoxes();
+  }
+
+  /// Borra una carpeta de Tareas con sus tareas. Devuelve los recordatorios
+  /// que tenían programados (para borrarlos).
+  Future<List<int>> deleteTaskFolder(TaskFolder f) async {
+    final gone = tasks.where((t) => t.folder == f.id).toList();
+    tasks.removeWhere((t) => t.folder == f.id);
+    taskFolders.remove(f);
+    await saveTasks();
+    return [for (final t in gone) ?t.reminderId];
+  }
+
+  /// Suma tareas al final de las que hay para hacer.
+  Future<void> addTasks(TaskFolder f, Iterable<String> names) async {
+    final now = DateTime.now();
+    tasks.addAll([
+      for (final n in names) TaskItem(name: n, folder: f.id, created: now),
+    ]);
+    await saveTasks();
+  }
+
+  /// Sube (-1) o baja (+1) entre las de su carpeta y su lista.
+  Future<void> moveTask(TaskItem t, int dir) async {
+    final same = tasks
+        .where((x) => x.folder == t.folder && x.done == t.done)
+        .toList();
+    final i = same.indexOf(t);
+    final j = i + dir;
+    if (i < 0 || j < 0 || j >= same.length) return;
+    final a = tasks.indexOf(t);
+    final b = tasks.indexOf(same[j]);
+    tasks[a] = same[j];
+    tasks[b] = t;
+    await saveTasks();
+  }
+
+  /// La Libreta vieja: solo se lee para pasarla a Notas y Tareas.
+  final List<NoteFolder> folders = [];
 
   Future<void> _saveChat() => _store.write(
     'chat_history',
@@ -296,10 +270,10 @@ class AppSettings extends ChangeNotifier {
   /// de cortar cuando uno hace una pausa.
   bool longPauseDictation = false;
 
-  /// De Te Recordaré → al calendario.
+  /// De Alerta Ya → al calendario.
   bool calendarSend = false;
 
-  /// Del calendario → a Te Recordaré, automático.
+  /// Del calendario → a Alerta Ya, automático.
   bool calendarAuto = false;
 
   /// Eventos que ya se vieron (para traer solo los nuevos).
@@ -371,7 +345,7 @@ class AppSettings extends ChangeNotifier {
     await _saveKnown();
   }
 
-  /// Link privado (iCal) de un calendario de Google: Te Recordaré lo lee
+  /// Link privado (iCal) de un calendario de Google: Alerta Ya lo lee
   /// directo de Google. Se guarda cifrado, como las claves (es secreto) y
   /// no va en la copia.
   String? icalUrl;
@@ -430,7 +404,9 @@ class AppSettings extends ChangeNotifier {
     'dia_noche': dayNight.name,
     'colores_dia': dayColors.encode(),
     'colores_noche': nightColors.encode(),
-    'libreta': NoteFolder.encodeAll(folders),
+    'notas': NoteBox.encodeAll(notes),
+    'tareas': encodeTasks(taskFolders, tasks),
+    'colores_barra': ?_tabColorsRaw,
     'prioridades': ?prioritiesRaw,
     for (final id in providerIds)
       if (_models[id] != null) 'model_$id': _models[id]!,
@@ -456,11 +432,20 @@ class AppSettings extends ChangeNotifier {
           e.key == 'color_pending' ||
           e.key == 'color_done' ||
           e.key == 'libreta' ||
+          e.key == 'notas' ||
+          e.key == 'tareas' ||
+          e.key == 'colores_barra' ||
           e.key == 'prioridades' ||
           e.key.startsWith('model_') ||
           e.key.startsWith('balance_')) {
         await _store.write(e.key, e.value);
       }
+    }
+    // Una copia vieja (de antes de Notas y Tareas) trae solo la Libreta:
+    // se pasa de nuevo a Notas y Tareas al cargar.
+    if (prefs.containsKey('libreta') && !prefs.containsKey('tareas')) {
+      await _store.write('notas', '');
+      await _store.write('tareas', '');
     }
     chatHistory
       ..clear()
@@ -483,6 +468,7 @@ class AppSettings extends ChangeNotifier {
         ..clear()
         ..addAll(loaded);
     } catch (_) {}
+    await _loadNotesAndTasks();
     calendarId = await _store.read('cal_id');
     calendarName = await _store.read('cal_name');
     longPauseDictation = await _store.read('dictado_pausas_largas') == 'true';
@@ -552,6 +538,46 @@ class AppSettings extends ChangeNotifier {
       if ((await keys.read(id))?.isNotEmpty ?? false) _withKey.add(id);
     }
     notifyListeners();
+  }
+
+  String? _tabColorsRaw;
+
+  Future<void> _loadNotesAndTasks() async {
+    final rawNotes = await _store.read('notas');
+    final rawTasks = await _store.read('tareas');
+    notes.clear();
+    taskFolders.clear();
+    tasks.clear();
+    if ((rawNotes ?? '').isEmpty && (rawTasks ?? '').isEmpty) {
+      // Primera vez con Notas y Tareas: se pasa lo que había en la Libreta.
+      if (folders.isNotEmpty) {
+        final (n, f, t) = migrateNotebook(folders);
+        notes.addAll(n);
+        taskFolders.addAll(f);
+        tasks.addAll(t);
+        await _store.write('notas', NoteBox.encodeAll(notes));
+        await _store.write('tareas', encodeTasks(taskFolders, tasks));
+      }
+    } else {
+      try {
+        notes.addAll(NoteBox.decodeAll(rawNotes));
+      } catch (_) {}
+      try {
+        final (f, t) = decodeTasks(rawTasks);
+        taskFolders.addAll(f);
+        tasks.addAll(t);
+      } catch (_) {}
+    }
+    _tabColorsRaw = await _store.read('colores_barra');
+    try {
+      final j = jsonDecode(_tabColorsRaw ?? '{}') as Map<String, dynamic>;
+      notesColor = j['notas'] is int
+          ? Color(j['notas'] as int)
+          : defaultNotesColor;
+      tasksColor = j['tareas'] is int
+          ? Color(j['tareas'] as int)
+          : defaultTasksColor;
+    } catch (_) {}
   }
 
   Future<void> setMode(UsageMode value) async {

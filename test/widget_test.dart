@@ -28,13 +28,40 @@ void main() {
     return repo;
   }
 
-  testWidgets('Muestra las cuatro pestañas', (tester) async {
+  testWidgets('Muestra las cinco pestañas, en orden', (tester) async {
     await pumpApp(tester);
-    expect(find.text('TE RECORDARÉ'), findsOneWidget);
-    expect(find.text('Tu plan:'), findsOneWidget);
-    for (final label in ['Chat', 'Almanaque', 'Listado', 'Configuración']) {
-      expect(find.text(label), findsWidgets);
+    expect(find.text('ALERTA YA'), findsOneWidget);
+    final labels = ['Mensaje', 'Almanaque', 'Listado', 'Notas', 'Tareas'];
+    final xs = [
+      for (final l in labels) tester.getCenter(find.byKey(Key('tab-$l'))).dx,
+    ];
+    for (var i = 1; i < xs.length; i++) {
+      expect(xs[i], greaterThan(xs[i - 1]));
     }
+  });
+
+  testWidgets('el menú ⋮ abre Configuración (con Chat completo) y Ejemplos', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    await tester.tap(find.byKey(const Key('top-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Configuración'));
+    await tester.pumpAndSettle();
+    expect(find.text('Modo de uso'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Chat completo'), 200);
+    await tester.tap(find.text('Chat completo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Todavía no hablamos.'), findsOneWidget);
+    await tester.tap(find.byType(BackButton).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(BackButton).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('top-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ejemplos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Una sola vez'), findsOneWidget);
   });
 
   testWidgets('Carga un recordatorio desde el chat y aparece en el listado', (
@@ -260,7 +287,12 @@ void main() {
     await tester.pumpAndSettle();
     expect((await repo.watchAll().first).single.title, 'Lavar el auto');
 
-    // En "Chat completo" está toda la conversación.
+    // En Configuración → "Chat completo" está toda la conversación.
+    await tester.tap(find.byKey(const Key('top-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Configuración'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Chat completo'), 200);
     await tester.tap(find.text('Chat completo'));
     await tester.pumpAndSettle();
     expect(
@@ -393,9 +425,13 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Cargar a mano\nrecordatorios'), findsOneWidget);
-    expect(find.byKey(const Key('open-notebook')), findsOneWidget);
-    expect(find.text('Todo hecho ✓'), findsOneWidget);
+    // Mensaje: los dos botones de arriba, la campana y el micrófono grande.
+    expect(find.text('Último recordatorio'), findsOneWidget);
+    expect(find.text('Cargar a mano'), findsOneWidget);
+    expect(find.byKey(const Key('big-mic')), findsOneWidget);
+    expect(find.byKey(const Key('top-mic')), findsNothing);
+    await tester.tap(find.byKey(const Key('top-menu')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Ejemplos'));
     await tester.pumpAndSettle();
     expect(find.text('Ejemplos y formas de pedirlo'), findsOneWidget);
@@ -482,6 +518,11 @@ void main() {
     // pendientes de día.
     await tester.tap(find.byKey(const Key('list-colors')));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('ESTÁS PINTANDO LOS COLORES DE DÍA'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.text('ESTÁS PINTANDO LOS COLORES DE DÍA'), findsOneWidget);
     await tester.ensureVisible(find.byKey(const Key('pend-verde')));
     await tester.pumpAndSettle();
@@ -508,7 +549,9 @@ void main() {
       RecordameApp(reminders: MemoryReminderRepository(), settings: settings),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Configuración').last);
+    await tester.tap(find.byKey(const Key('top-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Configuración'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Colores'));
     await tester.pumpAndSettle();
@@ -590,171 +633,27 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.textContaining(title(now)), findsNothing);
-    // Listado → Libreta → Configuración → vuelve a Chat.
-    await tester.flingFrom(
-      tester.getTopLeft(area) + const Offset(400, 30),
-      const Offset(-300, 0),
-      1000,
-    );
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('notebook-search')), findsOneWidget);
-    // En la Libreta, debajo del buscador.
-    await tester.flingFrom(
-      tester.getTopLeft(area) + const Offset(400, 200),
-      const Offset(-300, 0),
-      1000,
-    );
-    await tester.pumpAndSettle();
-    await tester.flingFrom(
-      tester.getTopLeft(area) + const Offset(400, 30),
-      const Offset(-300, 0),
-      1000,
-    );
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('notebook-search')), findsNothing);
-    // Para el otro lado: Chat → Configuración → Libreta.
-    await tester.flingFrom(
-      tester.getTopLeft(area) + const Offset(400, 30),
-      const Offset(300, 0),
-      1000,
-    );
-    await tester.pumpAndSettle();
-    await tester.flingFrom(
-      tester.getTopLeft(area) + const Offset(400, 30),
-      const Offset(300, 0),
-      1000,
-    );
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('notebook-search')), findsOneWidget);
-  });
-
-  testWidgets('la libreta es una solapa de abajo: anota y vuelve al inicio', (
-    tester,
-  ) async {
-    final settings = AppSettings(MemorySettingsStore(), MemoryKeyStore());
-    await tester.pumpWidget(
-      RecordameApp(reminders: MemoryReminderRepository(), settings: settings),
-    );
-    await tester.pumpAndSettle();
-    // Ya no flota: está abajo, entre Listado y Configuración.
-    expect(find.byKey(const Key('notebook-fab')), findsNothing);
-    final bar = find.byType(NavigationBar);
-    double x(String l) =>
-        tester.getCenter(find.descendant(of: bar, matching: find.text(l))).dx;
-    final labels = [
-      for (final l in ['Chat', 'Almanaque', 'Listado', 'Libreta']) x(l),
-    ];
-    for (var i = 1; i < labels.length; i++) {
-      expect(labels[i], greaterThan(labels[i - 1]));
-    }
-    expect(x('Configuración'), greaterThan(labels.last));
-    await tester.tap(find.byKey(const Key('tab-libreta')));
-    await tester.pumpAndSettle();
-    expect(find.text('Anotar en: General'), findsOneWidget);
-    expect(find.byKey(const Key('quick-cancel')), findsNothing);
-    await tester.enterText(
-      find.byKey(const Key('notebook-input')),
-      'Comprar filamento',
-    );
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('notebook-send')));
-    await tester.pumpAndSettle();
-    expect(settings.folders.single.items.single.text, 'Comprar filamento');
-    expect(find.text('1 pendiente'), findsWidgets);
-    // El botoncito rojo de la solapa muestra lo pendiente.
-    expect(
-      find.descendant(
-        of: find.byKey(const Key('tab-libreta-badge')),
-        matching: find.text('1'),
-      ),
-      findsOneWidget,
-    );
-    // Lo buscado no queda al salir y volver a entrar.
-    await tester.enterText(find.byKey(const Key('notebook-search')), 'filam');
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Listado'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('tab-libreta')));
-    await tester.pumpAndSettle();
-    final search = tester.widget<TextField>(
-      find.byKey(const Key('notebook-search')),
-    );
-    expect(search.controller!.text, '');
-  });
-
-  testWidgets('libreta: elegir carpeta en botones parejos que se deslizan', (
-    tester,
-  ) async {
-    final settings = AppSettings(MemorySettingsStore(), MemoryKeyStore());
-    for (var i = 1; i <= 8; i++) {
-      await settings.addFolder('Carpeta $i', 0xFFC98A00);
-    }
-    await tester.pumpWidget(
-      RecordameApp(reminders: MemoryReminderRepository(), settings: settings),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('tab-libreta')));
-    await tester.pumpAndSettle();
-    expect(find.text('Anotar en: Carpeta 1'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('quick-folder-now')));
-    await tester.pumpAndSettle();
-    // Se ven 6; la 7 y la 8 aparecen deslizando adentro del recuadro.
-    expect(find.byKey(const Key('quick-folder-7')), findsNothing);
-    await tester.drag(
-      find.byKey(const Key('quick-folder-4')),
-      const Offset(0, -200),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('quick-folder-7')));
-    await tester.pumpAndSettle();
-    expect(find.text('Anotar en: Carpeta 8'), findsOneWidget);
-    await tester.enterText(find.byKey(const Key('notebook-input')), 'Pintar');
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('notebook-send')));
-    await tester.pumpAndSettle();
-    expect(settings.folders.last.items.single.text, 'Pintar');
-  });
-
-  testWidgets('el botón Libreta del Chat lleva a la solapa', (tester) async {
-    final settings = AppSettings(MemorySettingsStore(), MemoryKeyStore());
-    await tester.pumpWidget(
-      RecordameApp(reminders: MemoryReminderRepository(), settings: settings),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('open-notebook')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('notebook-search')), findsOneWidget);
-    expect(find.byKey(const Key('tab-swipe')), findsOneWidget);
-  });
-
-  testWidgets(
-    'Tu plan: cambia entre Gratis y Con IA; la ayuda lleva a Configuración',
-    (tester) async {
-      final settings = AppSettings(MemorySettingsStore(), MemoryKeyStore());
-      await tester.pumpWidget(
-        RecordameApp(reminders: MemoryReminderRepository(), settings: settings),
+    // Listado → Notas → Tareas → vuelve a Mensaje.
+    Future<void> fling(double dx, [double y = 30]) async {
+      await tester.flingFrom(
+        tester.getTopLeft(area) + Offset(400, y),
+        Offset(dx, 0),
+        1000,
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Con IA'));
-      await tester.pumpAndSettle();
-      expect(settings.mode, UsageMode.ai);
-      expect(find.text('Falta tu clave de IA.'), findsOneWidget);
+    }
 
-      await tester.tap(find.byTooltip('¿Cómo funciona?'));
-      await tester.pumpAndSettle();
-      expect(find.text('¿Por qué hace falta una clave?'), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.text('Ir a Configuración'),
-        300,
-        scrollable: find.byType(Scrollable).last,
-      );
-      await tester.tap(find.text('Ir a Configuración'));
-      await tester.pumpAndSettle();
-      expect(find.text('Modo de uso'), findsOneWidget);
-      expect(find.text('Inteligencia artificial'), findsOneWidget);
-    },
-  );
+    await fling(-300);
+    expect(find.byKey(const Key('notes-add')), findsOneWidget);
+    await fling(-300, 200);
+    expect(find.byKey(const Key('tasks-new-folder')), findsOneWidget);
+    await fling(-300, 200);
+    expect(find.byKey(const Key('tasks-new-folder')), findsNothing);
+    expect(find.byKey(const Key('reminder-title')), findsOneWidget);
+    // Para el otro lado: Mensaje → Tareas.
+    await fling(300, 200);
+    expect(find.byKey(const Key('tasks-new-folder')), findsOneWidget);
+  });
 
   testWidgets('En modo IA se pueden elegir los modelos de Claude', (
     tester,
@@ -769,6 +668,8 @@ void main() {
     await tester.pumpWidget(
       RecordameApp(reminders: MemoryReminderRepository(), settings: settings),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('top-menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Configuración'));
     await tester.pumpAndSettle();
@@ -800,6 +701,8 @@ void main() {
         aiProviderOverride: _FakeProvider('{}'),
       ),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('top-menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Configuración'));
     await tester.pumpAndSettle();

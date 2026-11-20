@@ -30,7 +30,7 @@ class OpenAiProvider implements AiProvider {
   List<String> get guideSteps => const [
     'Entrá a platform.openai.com y creá una cuenta. Ojo: es distinta de la suscripción a ChatGPT.',
     'Andá a "Settings" → "Billing", agregá una tarjeta y cargá saldo (el mínimo alcanza).',
-    'Andá a "API keys" y tocá "Create new secret key". Ponele de nombre "Te Recordaré".',
+    'Andá a "API keys" y tocá "Create new secret key". Ponele de nombre "Alerta Ya".',
     'Copiá la clave (empieza con sk-). Se muestra una sola vez.',
     'Pegala acá abajo, tocá "Guardar" y después "Probar clave".',
   ];

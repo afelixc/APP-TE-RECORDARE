@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../chat/dictation.dart';
 import '../chat/talking_panel.dart';
 
-/// Abajo de la libreta: campo para escribir con ✓ verde (Anotar) y el
+/// Abajo de cada carpeta de Tareas: campo para escribir con ✓ verde (Anotar) y el
 /// micrófono al lado. Al dictar se usa el mismo panel que en el Chat
 /// ("Grabando 0:12"): no se corta en las pausas y junta todo lo dicho.
 class NoteInputBar extends StatefulWidget {

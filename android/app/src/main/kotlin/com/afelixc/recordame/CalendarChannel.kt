@@ -53,8 +53,8 @@ class CalendarChannel(private val context: Context) {
             "crear" -> background(result) {
                 val values = eventValues(call)
                 values.put(CalendarContract.Events.CALENDAR_ID, (call.argument<Number>("calendario") ?: 0).toLong())
-                values.put(CalendarContract.Events.DESCRIPTION, "Creado por Te Recordaré")
-                // Sin avisos de Google Calendar: avisa Te Recordaré.
+                values.put(CalendarContract.Events.DESCRIPTION, "Creado por Alerta Ya")
+                // Sin avisos de Google Calendar: avisa Alerta Ya.
                 values.put(CalendarContract.Events.HAS_ALARM, 0)
                 resolver.insert(CalendarContract.Events.CONTENT_URI, values)?.lastPathSegment
             }

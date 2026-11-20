@@ -139,11 +139,42 @@ class _ColorsPageState extends State<ColorsPage> {
               ),
               const SizedBox(height: 14),
               _Box(
+                title: 'Botones de Notas y Tareas',
+                icon: Icons.space_dashboard_outlined,
+                children: [
+                  Text(
+                    'Mensaje, Almanaque y Listado van juntos con el color de '
+                    'la app. Notas y Tareas tienen su propio color, elegilo '
+                    'acá:',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  _TabColorRow(
+                    title: 'Botón de Notas',
+                    icon: Icons.sticky_note_2,
+                    value: settings.notesColor,
+                    onPick: (c) => settings.setTabColors(notes: c),
+                  ),
+                  _TabColorRow(
+                    title: 'Botón de Tareas',
+                    icon: Icons.task_alt,
+                    value: settings.tasksColor,
+                    onPick: (c) => settings.setTabColors(tasks: c),
+                  ),
+                  OutlinedButton.icon(
+                    key: const Key('tab-colors-reset'),
+                    icon: const Icon(Icons.restart_alt),
+                    label: const Text('Volver a los colores de siempre'),
+                    onPressed: settings.resetTabColors,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _Box(
                 title: 'Ícono del teléfono',
                 icon: Icons.apps,
                 children: [
                   Text(
-                    'El dibujito de Te Recordaré en la pantalla de inicio. '
+                    'El dibujito de Alerta Ya en la pantalla de inicio. '
                     'Elegís uno de estos, ya vienen preparados. Es uno solo '
                     'para día y noche.',
                     style: Theme.of(context).textTheme.bodySmall,
@@ -277,36 +308,6 @@ class _ColorsPageState extends State<ColorsPage> {
                           onPick: (id) => set(c.copyWith(done: id)),
                         ),
                         _ListSample(colors: c, night: _night),
-                      ],
-                    ),
-                    _Box(
-                      title: 'Libreta',
-                      icon: Icons.menu_book_outlined,
-                      note: 'adentro de las carpetas',
-                      children: [
-                        _SoftRow(
-                          label: 'Las que faltan hacer',
-                          prefix: 'lpend',
-                          selected: c.notePending,
-                          night: _night,
-                          onPick: (id) => set(c.copyWith(notePending: id)),
-                        ),
-                        _SoftRow(
-                          label: 'Las hechas',
-                          prefix: 'ldone',
-                          selected: c.noteDone,
-                          night: _night,
-                          onPick: (id) => set(c.copyWith(noteDone: id)),
-                        ),
-                        _ListSample(
-                          colors: c.copyWith(
-                            pending: c.notePending,
-                            done: c.noteDone,
-                          ),
-                          night: _night,
-                          pendingText: 'Comprar vino',
-                          doneText: 'Cambiar el tóner',
-                        ),
                       ],
                     ),
                     Wrap(
@@ -758,7 +759,7 @@ class _AppSample extends StatelessWidget {
             ),
             alignment: Alignment.center,
             child: Text(
-              'TE RECORDARÉ',
+              'ALERTA YA',
               style: TextStyle(
                 color: night ? scheme.primary : scheme.onPrimary,
                 fontWeight: FontWeight.w800,
@@ -838,17 +839,10 @@ class _CalendarSample extends StatelessWidget {
 
 /// Muestra: un pendiente y un hecho.
 class _ListSample extends StatelessWidget {
-  const _ListSample({
-    required this.colors,
-    required this.night,
-    this.pendingText = 'Llamar al dentista',
-    this.doneText = 'Pagar la luz',
-  });
+  const _ListSample({required this.colors, required this.night});
 
   final ColorSet colors;
   final bool night;
-  final String pendingText;
-  final String doneText;
 
   @override
   Widget build(BuildContext context) {
@@ -886,14 +880,14 @@ class _ListSample extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        tile(pendingText, softColor(colors.pending), false),
-        tile(doneText, softColor(colors.done), true),
+        tile('Llamar al dentista', softColor(colors.pending), false),
+        tile('Pagar la luz', softColor(colors.done), true),
       ],
     );
   }
 }
 
-/// El ícono de Te Recordaré (lapicera, almanaque y tilde) en una de sus
+/// El ícono de Alerta Ya (lapicera, almanaque y tilde) en una de sus
 /// combinaciones. Son los mismos dibujos del teléfono, generados con
 /// `tool/generar_iconos.py` en `assets/iconos/<id>.png`.
 class AppIconPreview extends StatelessWidget {
@@ -987,6 +981,97 @@ class _ModeButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Colores para elegir en los botones de Notas y Tareas.
+const tabColorChoices = <Color>[
+  Color(0xFFD99A00),
+  Color(0xFFE07B00),
+  Color(0xFFC62828),
+  Color(0xFFD81B60),
+  Color(0xFF6A4FB3),
+  Color(0xFF2F6DB5),
+  Color(0xFF00897B),
+  Color(0xFF2E8B57),
+  Color(0xFF5D4037),
+  Color(0xFF2C3A66),
+];
+
+/// La muestra del botón y los colores en ronda.
+class _TabColorRow extends StatelessWidget {
+  const _TabColorRow({
+    required this.title,
+    required this.icon,
+    required this.value,
+    required this.onPick,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color value;
+  final ValueChanged<Color> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            border: Border.all(color: scheme.outlineVariant),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: value, size: 28),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: TextStyle(
+                  color: value,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final c in tabColorChoices)
+              Semantics(
+                button: true,
+                selected: c.toARGB32() == value.toARGB32(),
+                label: '$title: color',
+                child: GestureDetector(
+                  onTap: () => onPick(c),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: c,
+                      shape: BoxShape.circle,
+                      boxShadow: c.toARGB32() == value.toARGB32()
+                          ? [
+                              BoxShadow(color: scheme.surface, spreadRadius: 3),
+                              BoxShadow(color: c, spreadRadius: 5),
+                            ]
+                          : null,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }

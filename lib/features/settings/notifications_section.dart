@@ -300,7 +300,7 @@ class _StatusRow extends StatelessWidget {
   }
 }
 
-/// Lista de sonidos: los de Te Recordaré y "Elegir otro del teléfono".
+/// Lista de sonidos: los de Alerta Ya y "Elegir otro del teléfono".
 /// Tocar el ▶ lo hace sonar; tocar el nombre lo elige.
 Future<void> showSoundPicker(
   BuildContext context,

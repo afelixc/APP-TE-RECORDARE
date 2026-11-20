@@ -5,6 +5,7 @@ import '../../core/app_scope.dart';
 import '../../core/formatting.dart';
 import '../../core/settings.dart';
 import '../ai/ai_providers.dart';
+import '../chat/ai_chat.dart' show ChatHistoryView;
 import '../help/modes_help.dart';
 import 'ai_section.dart';
 import 'backup_section.dart';
@@ -94,6 +95,12 @@ class SettingsScreen extends StatelessWidget {
                       )
                     : NotificationsSection(service: scope.notifications!),
               ),
+            ),
+            SettingsMenuItem(
+              icon: Icons.forum_outlined,
+              title: 'Chat completo',
+              subtitle: 'Todo lo que se habló e hizo en la app',
+              page: (_) => _ChatPage(settings: settings),
             ),
             if (scope.backup != null)
               SettingsMenuItem(
@@ -321,6 +328,25 @@ class _BoxedTile extends StatelessWidget {
 }
 
 /// Pantalla de una opción de Configuración.
+/// "Chat completo": todo lo hablado con la IA, guardado en el teléfono.
+class _ChatPage extends StatelessWidget {
+  const _ChatPage({required this.settings});
+
+  final AppSettings settings;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Chat completo')),
+    body: ListenableBuilder(
+      listenable: settings,
+      builder: (context, _) => ChatHistoryView(
+        messages: settings.chatHistory,
+        onClear: settings.clearChat,
+      ),
+    ),
+  );
+}
+
 class _Page extends StatelessWidget {
   const _Page({required this.title, required this.child});
 
@@ -463,8 +489,8 @@ class _VersionFooter extends StatelessWidget {
       future: PackageInfo.fromPlatform(),
       builder: (context, snapshot) => Text(
         snapshot.hasData
-            ? 'Te Recordaré · versión ${snapshot.data!.version}'
-            : 'Te Recordaré',
+            ? 'Alerta Ya · versión ${snapshot.data!.version}'
+            : 'Alerta Ya',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.bodySmall,
       ),

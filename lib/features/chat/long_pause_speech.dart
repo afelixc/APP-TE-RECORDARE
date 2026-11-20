@@ -38,9 +38,10 @@ class LongPauseSpeech implements SpeechToText {
       case 'texto':
         final args = Map<String, dynamic>.from(call.arguments as Map);
         _onResult?.call(
-          SpeechRecognitionResult.init([
-            SpeechRecognitionWords(args['texto'] as String, null, 0.9),
-          ], args['final'] == true ? ResultType.finalResult : ResultType.partial),
+          SpeechRecognitionResult.init(
+            [SpeechRecognitionWords(args['texto'] as String, null, 0.9)],
+            args['final'] == true ? ResultType.finalResult : ResultType.partial,
+          ),
         );
       case 'error':
         // El error ya viene seguido de "fin": con eso se vuelve a escuchar.
@@ -70,7 +71,9 @@ class LongPauseSpeech implements SpeechToText {
     final locale = ((listenOptions?.localeId ?? localeId) as String? ?? 'es_AR')
         .replaceAll('_', '-');
     _listening = true;
-    final ok = await _channel.invokeMethod<bool>('escuchar', {'idioma': locale});
+    final ok = await _channel.invokeMethod<bool>('escuchar', {
+      'idioma': locale,
+    });
     if (ok != true) _listening = false;
   }
 

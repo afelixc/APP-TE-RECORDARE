@@ -180,6 +180,8 @@ void main() {
       RecordameApp(reminders: repo, settings: backup.settings, backup: backup),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('top-menu')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Configuración'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Copia de seguridad'), 100);

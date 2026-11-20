@@ -6,13 +6,13 @@ import '../../core/app_scope.dart';
 import '../calendar/calendar_screen.dart';
 import '../chat/ai_chat.dart' show talkWhenChatOpens;
 import '../chat/chat_screen.dart';
-import '../notebook/notebook_page.dart';
-import '../notebook/notes.dart';
-import '../notebook/quick_note.dart';
+import '../notes/boxes.dart';
+import '../notes/notes_screen.dart';
+import '../notes/tasks_screen.dart';
 import '../notifications/reminder_actions_sheet.dart';
 import '../reminders/reminder_editor.dart';
 import '../reminders/reminders_screen.dart';
-import '../settings/settings_screen.dart';
+import 'top_bar.dart';
 
 /// Una pestaña de la barra inferior.
 class AppTab {
@@ -21,20 +21,25 @@ class AppTab {
     required this.icon,
     required this.selectedIcon,
     required this.builder,
+    this.ownTopBar = false,
   });
 
+  /// Arma su propia barra de arriba.
+  final bool ownTopBar;
   final String label;
   final IconData icon;
   final IconData selectedIcon;
   final WidgetBuilder builder;
 }
 
-/// Lista de pestañas. Para sumar una nueva, agregala acá.
+/// Lista de pestañas: Mensaje · Almanaque · Listado | Notas · Tareas.
+/// Notas y Tareas tienen su propia barra de arriba (adentro de una carpeta
+/// muestran la de la carpeta) y su color (Configuración → Colores).
 final List<AppTab> appTabs = [
   AppTab(
-    label: 'Chat',
-    icon: Icons.chat_bubble_outline,
-    selectedIcon: Icons.chat_bubble,
+    label: 'Mensaje',
+    icon: Icons.chat_outlined,
+    selectedIcon: Icons.chat,
     builder: (_) => const ChatScreen(),
   ),
   AppTab(
@@ -49,21 +54,19 @@ final List<AppTab> appTabs = [
     selectedIcon: Icons.checklist,
     builder: (_) => const RemindersScreen(),
   ),
-  // La libreta como una solapa más, entre Listado y Configuración (pedido
-  // del usuario; antes flotaba). En la barra va en un recuadro amarillo con
-  // lo pendiente en rojo ([_NotebookTabIcon]).
   AppTab(
-    label: 'Libreta',
-    icon: Icons.menu_book_outlined,
-    selectedIcon: Icons.menu_book,
-    builder: (context) =>
-        NotebookPage(settings: AppScope.of(context).settings, inTab: true),
+    label: 'Notas',
+    icon: Icons.sticky_note_2_outlined,
+    selectedIcon: Icons.sticky_note_2,
+    builder: (_) => const NotesScreen(),
+    ownTopBar: true,
   ),
   AppTab(
-    label: 'Configuración',
-    icon: Icons.settings_outlined,
-    selectedIcon: Icons.settings,
-    builder: (_) => const SettingsScreen(),
+    label: 'Tareas',
+    icon: Icons.task_alt_outlined,
+    selectedIcon: Icons.task_alt,
+    builder: (_) => const TasksScreen(),
+    ownTopBar: true,
   ),
 ];
 
@@ -87,6 +90,17 @@ class HomeShell extends StatefulWidget {
     return true;
   }
 
+  /// El micrófono de arriba: con IA va a Mensaje y escucha; si no, abre la
+  /// carga a mano.
+  static void talk(BuildContext context) {
+    final state = context.findAncestorStateOfType<_HomeShellState>();
+    if (state != null) {
+      state._talk();
+    } else {
+      showReminderEditor(context);
+    }
+  }
+
   @override
   State<HomeShell> createState() => _HomeShellState();
 }
@@ -95,7 +109,7 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
   /// Sube cada vez que se toca una solapa: así al volver a entrar (por
-  /// ejemplo a la Libreta) siempre arranca en su pantalla de inicio, sin la
+  /// ejemplo a Notas) siempre arranca en su pantalla de inicio, sin la
   /// búsqueda de antes (pedido del usuario).
   int _visit = 0;
 
@@ -104,7 +118,7 @@ class _HomeShellState extends State<HomeShell> {
     _visit++;
   });
 
-  /// El micrófono de arriba: con IA va al Chat y escucha; si no, abre la
+  /// El micrófono de arriba: con IA va a Mensaje y escucha; si no, abre la
   /// carga a mano.
   void _talk() {
     final settings = AppScope.of(context).settings;
@@ -117,8 +131,8 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   /// Deslizar el dedo cambia de solapa y al llegar a la última vuelve a la
-  /// primera: hacia la izquierda, la de la derecha (Chat → Almanaque →
-  /// Listado → Libreta → Configuración → Chat); hacia la derecha, la anterior.
+  /// primera: hacia la izquierda, la de la derecha (Mensaje → Almanaque →
+  /// Listado → Notas → Tareas → Mensaje); hacia la derecha, la anterior.
   void _swipe(DragEndDetails d) {
     final v = d.primaryVelocity ?? 0;
     if (v.abs() < 300) return;
@@ -154,172 +168,161 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final tab = appTabs[_index];
-    final scheme = Theme.of(context).colorScheme;
-    final night = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      appBar: AppBar(
-        // Barra con el color de la app (Configuración → Colores). De noche,
-        // fondo oscuro y letras de ese color, para que no encandile.
-        backgroundColor: night ? scheme.surfaceContainer : scheme.primary,
-        foregroundColor: night ? scheme.primary : scheme.onPrimary,
-        centerTitle: true,
-        title: const Text(
-          'TE RECORDARÉ',
-          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 2),
-        ),
-        // Fuera del Chat: un micrófono para cargar algo enseguida (pedido
-        // del usuario, en lugar del botón "Nuevo").
-        actions: [
-          if (_index != 0)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: IconButton.filled(
-                key: const Key('top-mic'),
-                tooltip: 'Hablar para cargar un recordatorio',
-                style: IconButton.styleFrom(
-                  backgroundColor: scheme.secondary,
-                  foregroundColor: scheme.onSecondary,
-                ),
-                icon: const Icon(Icons.mic),
-                onPressed: _talk,
-              ),
-            ),
-        ],
-      ),
       body: GestureDetector(
         key: const Key('tab-swipe'),
         behavior: HitTestBehavior.translucent,
         onHorizontalDragEnd: _swipe,
-        child: KeyedSubtree(
-          key: ValueKey((_index, _visit)),
-          child: tab.builder(context),
-        ),
-      ),
-      // La solapa elegida se agranda y se destaca (pedido del usuario): dibujo
-      // más grande, letra más grande y en negrita del color de la app.
-      bottomNavigationBar: NavigationBarTheme(
-        data: NavigationBarThemeData(
-          indicatorColor: scheme.primary.withValues(alpha: night ? 0.35 : 0.22),
-          iconTheme: WidgetStateProperty.resolveWith(
-            (s) => s.contains(WidgetState.selected)
-                ? IconThemeData(size: 33, color: scheme.primary)
-                : IconThemeData(size: 26, color: scheme.onSurfaceVariant),
-          ),
-          labelTextStyle: WidgetStateProperty.resolveWith(
-            (s) => s.contains(WidgetState.selected)
-                ? TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    color: scheme.primary,
-                  )
-                : TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
-          ),
-        ),
-        child: NavigationBar(
-          height: 88,
-          selectedIndex: _index,
-          onDestinationSelected: _select,
-          destinations: [
-            for (final t in appTabs)
-              _OneLineLabel(
-                label: t.label,
-                child: t.label == 'Libreta'
-                    ? NavigationDestination(
-                        key: const Key('tab-libreta'),
-                        icon: const _NotebookTabIcon(selected: false),
-                        selectedIcon: const _NotebookTabIcon(selected: true),
-                        label: t.label,
-                      )
-                    : NavigationDestination(
-                        icon: Icon(t.icon),
-                        selectedIcon: Icon(t.selectedIcon),
-                        label: t.label,
-                      ),
+        child: Column(
+          children: [
+            if (!tab.ownTopBar) MainTopBar(showMic: _index != 0),
+            Expanded(
+              child: KeyedSubtree(
+                key: ValueKey((_index, _visit)),
+                child: tab.builder(context),
               ),
+            ),
           ],
         ),
       ),
+      bottomNavigationBar: _BottomBar(index: _index, onSelect: _select),
     );
   }
 }
 
-/// Si el nombre de la solapa no entra en un renglón (p. ej. "Configuración"
-/// con letra grande), achica solo esa palabra para que entre, y el dibujo
-/// queda a la misma altura que los demás (pedido del usuario).
-class _OneLineLabel extends StatelessWidget {
-  const _OneLineLabel({required this.label, required this.child});
+/// La barra de abajo: Mensaje, Almanaque y Listado juntos en el color de la
+/// app; una rayita; Notas y Tareas con su propio color y el número rojo de
+/// lo que falta. El elegido queda marcado y un poco más grande.
+class _BottomBar extends StatelessWidget {
+  const _BottomBar({required this.index, required this.onSelect});
 
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final style =
-        (theme.navigationBarTheme.labelTextStyle?.resolve({
-                  WidgetState.selected,
-                }) ??
-                theme.textTheme.labelMedium)!
-            .copyWith(fontWeight: FontWeight.w700);
-    final scaler = MediaQuery.textScalerOf(context);
-    return LayoutBuilder(
-      builder: (context, box) {
-        final painter = TextPainter(
-          text: TextSpan(text: label, style: style),
-          textDirection: TextDirection.ltr,
-          textScaler: scaler,
-          maxLines: 1,
-        )..layout();
-        final room = box.maxWidth - 8;
-        final width = painter.width;
-        painter.dispose();
-        if (width <= room) return child;
-        final size = style.fontSize ?? 12;
-        final fitted = scaler.scale(size) * room / width;
-        return MediaQuery(
-          data: MediaQuery.of(context)
-              .copyWith(textScaler: TextScaler.linear(fitted / size)),
-          child: child,
-        );
-      },
-    );
-  }
-}
-
-/// La Libreta en la barra de abajo: el dibujo en un recuadro amarillo y, si
-/// hay cosas sin hacer, un botoncito rojo con cuántas (pedido del usuario).
-class _NotebookTabIcon extends StatelessWidget {
-  const _NotebookTabIcon({required this.selected});
-
-  final bool selected;
+  final int index;
+  final ValueChanged<int> onSelect;
 
   @override
   Widget build(BuildContext context) {
     final settings = AppScope.of(context).settings;
+    final scheme = Theme.of(context).colorScheme;
     final night = Theme.of(context).brightness == Brightness.dark;
-    final fg = night ? const Color(0xFFF0C04A) : notebookColor;
     return ListenableBuilder(
       listenable: settings,
       builder: (context, _) {
-        final toDo = notebookToDo(settings.folders);
-        return Badge(
-          key: const Key('tab-libreta-badge'),
-          isLabelVisible: toDo > 0,
-          backgroundColor: const Color(0xFFD32F2F),
-          textColor: Colors.white,
-          label: Text(toDo > 99 ? '99+' : '$toDo'),
-          offset: const Offset(10, -8),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-            decoration: BoxDecoration(
-              color: notebookColor.withValues(alpha: selected ? 0.32 : 0.16),
-              border: Border.all(color: fg, width: 1.6),
-              borderRadius: BorderRadius.circular(8),
+        final badges = [
+          0,
+          0,
+          0,
+          notesBadge(settings.notes),
+          settings.tasksToDo,
+        ];
+        final colors = [
+          scheme.primary,
+          scheme.primary,
+          scheme.primary,
+          settings.notesColor,
+          settings.tasksColor,
+        ];
+        Widget item(int i) {
+          final t = appTabs[i];
+          final selected = i == index;
+          final own = i >= 3;
+          final c = night && !own ? scheme.primary : colors[i];
+          final plain = night
+              ? scheme.onSurfaceVariant
+              : const Color(0xFF3A3F52);
+          return Expanded(
+            child: Semantics(
+              selected: selected,
+              button: true,
+              label: t.label,
+              child: InkWell(
+                key: Key('tab-${t.label}'),
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => onSelect(i),
+                child: AnimatedScale(
+                  scale: selected ? 1.12 : 1,
+                  duration: const Duration(milliseconds: 150),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Badge(
+                          isLabelVisible: badges[i] > 0,
+                          backgroundColor: const Color(0xFFD32F2F),
+                          textColor: Colors.white,
+                          label: Text(badges[i] > 99 ? '99+' : '${badges[i]}'),
+                          offset: const Offset(4, -6),
+                          child: Container(
+                            width: 52,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? c.withValues(alpha: 0.26)
+                                  : own
+                                  ? c.withValues(alpha: 0.12)
+                                  : null,
+                              borderRadius: BorderRadius.circular(16),
+                              border: selected
+                                  ? Border.all(
+                                      color: c.withValues(alpha: 0.55),
+                                      width: 1.5,
+                                    )
+                                  : null,
+                            ),
+                            child: Icon(
+                              selected ? t.selectedIcon : t.icon,
+                              color: c,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            t.label,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: selected || own ? c : plain,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : own
+                                  ? FontWeight.w500
+                                  : FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
-            child: Icon(
-              selected ? Icons.menu_book : Icons.menu_book_outlined,
-              color: fg,
-              size: selected ? 29 : 24,
+          );
+        }
+
+        return Material(
+          color: night ? scheme.surfaceContainer : const Color(0xFFECEEF3),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(2, 8, 2, 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  item(0),
+                  item(1),
+                  item(2),
+                  Container(
+                    width: 1,
+                    height: 38,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    color: const Color(0xFFC5C9D6),
+                  ),
+                  item(3),
+                  item(4),
+                ],
+              ),
             ),
           ),
         );

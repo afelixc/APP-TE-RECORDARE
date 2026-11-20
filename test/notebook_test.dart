@@ -3,8 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:recordame/core/settings.dart';
-import 'package:recordame/features/notebook/notebook_page.dart';
+import 'package:recordame/data/memory_reminder_repository.dart';
 import 'package:recordame/features/notebook/notes.dart';
+import 'package:recordame/features/notes/boxes.dart';
+import 'package:recordame/features/notes/note_editor.dart';
+import 'package:recordame/features/notes/notes_screen.dart';
+import 'package:recordame/features/notes/tasks_screen.dart';
 
 void main() {
   setUpAll(() => initializeDateFormatting('es_AR'));
@@ -79,73 +83,6 @@ void main() {
     expect(s.folders.single.items.map((n) => n.text), ['Leche', 'Pan']);
   });
 
-  test('carpetas: anotar, tachar, mover y volver a cargar', () async {
-    final store = MemorySettingsStore();
-    final s = AppSettings(store, MemoryKeyStore());
-    final f = await s.addFolder('Impresora', folderColors[1]);
-    await s.addNotes(f, ['Tóner', 'Cabezal', 'Papel']);
-    await s.setNoteDone(f, f.items.first, true);
-    await s.moveNote(f, f.pending.last, -1);
-    await s.addNotes(f, ['Cable']);
-    final again = AppSettings(store, MemoryKeyStore());
-    await again.load(const ['claude']);
-    final g = again.folders.single;
-    expect(g.name, 'Impresora');
-    expect(g.color, folderColors[1]);
-    expect(g.items.map((n) => (n.text, n.done)), [
-      ('Papel', false),
-      ('Cabezal', false),
-      ('Cable', false),
-      ('Tóner', true),
-    ]);
-    expect(again.exportPrefs(const ['claude']), contains('libreta'));
-  });
-
-  testWidgets('carpeta: anotar con ✓ y tildar solo con el cuadradito', (
-    tester,
-  ) async {
-    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
-    final f = await s.addFolder('Auto', folderColors.first);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: FolderPage(settings: s, folder: f),
-      ),
-    );
-    await tester.enterText(
-      find.byKey(const Key('notebook-input')),
-      'uno taller dos patente',
-    );
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('notebook-send')));
-    await tester.pumpAndSettle();
-    expect(find.text('✓ Anoté 2 cosas en Auto.'), findsOneWidget);
-    expect(find.text('PARA HACER (2)'), findsOneWidget);
-    // El engranajito (no el texto) muestra subir y bajar; no la da por hecha.
-    await tester.tap(find.byKey(const Key('gear-1-p')));
-    await tester.pumpAndSettle();
-    expect(f.items.first.done, isFalse);
-    expect(find.byTooltip('Bajar'), findsOneWidget);
-    await tester.tap(find.byTooltip('Bajar'));
-    await tester.pumpAndSettle();
-    expect(f.items.map((n) => n.text), ['Patente', 'Taller']);
-    await tester.tap(find.byType(Checkbox).first);
-    await tester.pumpAndSettle();
-    expect(find.text('HECHOS (1)'), findsOneWidget);
-  });
-
-  testWidgets('buscador: encuentra carpetas y cosas', (tester) async {
-    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
-    final f = await s.addFolder('Impresora', folderColors.first);
-    await s.addNotes(f, ['Cambiar el tóner']);
-    await s.addFolder('Auto', folderColors.first);
-    await tester.pumpWidget(MaterialApp(home: NotebookPage(settings: s)));
-    await tester.enterText(find.byKey(const Key('notebook-search')), 'toner');
-    await tester.pumpAndSettle();
-    expect(find.text('Cambiar el tóner'), findsOneWidget);
-    expect(find.text('En Impresora'), findsOneWidget);
-    expect(find.text('Auto'), findsNothing);
-  });
-
   test('cuenta hasta 10 cosas dictadas', () {
     expect(
       splitNotes(
@@ -167,229 +104,281 @@ void main() {
     );
   });
 
-  testWidgets('editar una nota y armar una lista adentro', (tester) async {
+  test(
+    'la Libreta vieja pasa sola a Notas y Tareas, sin perder nada',
+    () async {
+      final store = MemorySettingsStore();
+      final at = DateTime(2026, 1, 2);
+      await store.write(
+        'libreta',
+        NoteFolder.encodeAll([
+          NoteFolder(
+            'Casa',
+            color: 0xFF2F6FB3,
+            items: [
+              NoteItem('Pintar la reja', at: at),
+              NoteItem('Sacar la basura', at: at, done: true),
+              NoteItem(
+                'Compras',
+                at: at,
+                sub: const [SubItem('pan', done: true), SubItem('leche')],
+              ),
+            ],
+            memos: [
+              Memo(title: 'Wi-Fi', text: 'Red: Casa\nClave abajo', at: at),
+            ],
+          ),
+          NoteFolder('Vacía'),
+        ]),
+      );
+      final s = AppSettings(store, MemoryKeyStore());
+      await s.load(const []);
+      expect(s.taskFolders.map((f) => f.name), ['Casa', 'Vacía']);
+      expect(s.taskFolders.first.color, 'azul');
+      expect(s.tasks.map((t) => (t.name, t.done)), [
+        ('Pintar la reja', false),
+        ('Sacar la basura', true),
+      ]);
+      final folder = s.notes.firstWhere((n) => n.folder);
+      expect(folder.name, 'Casa');
+      final compras = s.notes.firstWhere((n) => n.name == 'Compras');
+      expect(compras.parent, folder.id);
+      expect(compras.pendingChecks, 1);
+      final wifi = s.notes.firstWhere((n) => n.name == 'Wi-Fi');
+      expect(wifi.lines.map((l) => l.text), ['Red: Casa', 'Clave abajo']);
+      expect(notesBadge(s.notes), 1);
+      expect(s.tasksToDo, 1);
+      // Se guarda: al volver a abrir no se repite.
+      final again = AppSettings(store, MemoryKeyStore());
+      await again.load(const []);
+      expect(again.tasks.length, 2);
+      expect(again.notes.length, s.notes.length);
+      // Y va en la copia.
+      expect(s.exportPrefs(const []).keys, containsAll(['notas', 'tareas']));
+    },
+  );
+
+  test('número rojo de Notas: las de afuera con algo sin tildar', () {
+    final f = NoteBox(folder: true, name: 'Casa');
+    final all = [
+      f,
+      NoteBox(
+        folder: false,
+        name: 'a',
+        parent: f.id,
+        lines: const [NoteLine('x', check: false), NoteLine('y', check: false)],
+      ),
+      NoteBox(
+        folder: false,
+        name: 'b',
+        lines: const [NoteLine('z', check: true)],
+      ),
+      NoteBox(
+        folder: false,
+        name: 'c',
+        lines: const [NoteLine('w', check: false)],
+      ),
+    ];
+    // Casa (2 casillas) y "c": 2, no la cantidad de casillas.
+    expect(notesBadge(all), 2);
+    final back = NoteBox.decodeAll(NoteBox.encodeAll(all));
+    expect(back[1].lines.first.check, false);
+    expect(back[1].parent, f.id);
+  });
+
+  testWidgets('Notas: crear carpeta y nota adentro; lo último arriba', (
+    tester,
+  ) async {
     final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
-    final f = await s.addFolder('Casa', folderColors.first);
-    await s.addNotes(f, ['Compras']);
     await tester.pumpWidget(
       MaterialApp(
-        home: NoteEditPage(settings: s, folder: f, note: f.items.first),
+        home: Scaffold(body: NotesScreen(settings: s)),
       ),
     );
+    expect(find.textContaining('Acá no hay nada todavía'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('notes-add')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nueva carpeta'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('box-name')), 'Casa');
+    await tester.tap(find.byKey(const Key('box-save')));
+    await tester.pumpAndSettle();
+    expect(s.notes.single.folder, true);
+    expect(s.notes.single.color, 'verde');
+    await tester.tap(find.text('Casa'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('folder-back')), findsOneWidget);
+    expect(
+      find.text(
+        'Acá no hay nada todavía.\nTocá + para crear una carpeta o una nota.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('folder-back')));
+    await tester.pumpAndSettle();
+    expect(find.text('Casa'), findsOneWidget);
+    // Una nota suelta, más nueva: va arriba.
+    s.notes.add(NoteBox(folder: false, name: 'Ideas'));
+    await s.saveNoteBoxes();
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.text('Ideas')).dx,
+      lessThan(tester.getTopLeft(find.text('Casa')).dx),
+    );
+    expect(find.text('Nota'), findsOneWidget);
+    // Filtro: solo carpetas.
+    await tester.tap(find.byKey(const Key('notes-filter')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Solo carpetas'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ideas'), findsNothing);
+    expect(find.text('Casa'), findsOneWidget);
+  });
+
+  testWidgets('editor: casilla, Enter sigue con casilla, negrita y tamaño', (
+    tester,
+  ) async {
+    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
+    final n = NoteBox(folder: false);
+    s.notes.add(n);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NoteEditor(settings: s, note: n, isNew: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('note-title-field')), 'Súper');
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('tool-cb')));
+    await tester.pumpAndSettle();
+    final field = find.descendant(
+      of: find.byKey(const Key('note-body')),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(field.first, '​Pan\nLeche');
+    await tester.pumpAndSettle();
+    expect(n.name, 'Súper');
+    expect(n.lines.map((l) => (l.text, l.check)), [
+      ('Pan', false),
+      ('Leche', false),
+    ]);
+    await tester.tap(find.byKey(const Key('note-check-0')));
+    await tester.pumpAndSettle();
+    expect(n.lines.first.check, true);
+    expect(n.pendingChecks, 1);
+    await tester.tap(find.byKey(const Key('tool-neg')));
+    await tester.pumpAndSettle();
+    expect(n.lines.last.bold, true);
+    await tester.tap(find.byKey(const Key('tool-tam')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('size-grande')));
+    await tester.pumpAndSettle();
+    expect(n.lines.last.size, LineSize.grande);
+    // Borrar la marca del principio junta el renglón con el de arriba.
+    await tester.enterText(field.last, 'Leche');
+    await tester.pumpAndSettle();
+    expect(n.lines.map((l) => l.text), ['PanLeche']);
+  });
+
+  testWidgets('Tareas: carpeta, agregar, archivar, volver y borrar', (
+    tester,
+  ) async {
+    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
+    final repo = MemoryReminderRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TasksScreen(settings: s, reminders: repo),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Todavía no hay carpetas'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('tasks-new-folder')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('box-name')), 'Casa');
+    await tester.tap(find.byKey(const Key('box-save')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Casa'));
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('notebook-input')),
-      'pan, leche, huevos',
+      'uno pintar la reja dos sacar la basura',
     );
     await tester.pump();
     await tester.tap(find.byKey(const Key('notebook-send')));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('note-title')), 'Supermercado');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    expect(s.tasks.map((t) => t.name), ['Pintar la reja', 'Sacar la basura']);
+    expect(find.text('PARA HACER (2)'), findsOneWidget);
+    expect(s.tasksToDo, 2);
+    // Bajar la primera.
+    await tester.tap(find.byKey(const Key('task-gear-Pintar la reja')));
     await tester.pumpAndSettle();
-    final n = f.items.single;
-    expect(n.text, 'Supermercado');
-    expect(n.sub.map((x) => x.text), ['Pan', 'Leche', 'Huevos']);
+    await tester.tap(find.byKey(const Key('task-down')));
+    await tester.pumpAndSettle();
+    expect(s.tasks.first.name, 'Sacar la basura');
+    // Archivar: baja a Completadas.
+    await tester.tap(find.byKey(const Key('task-archive')));
+    await tester.pumpAndSettle();
+    expect(s.tasks.firstWhere((t) => t.name == 'Pintar la reja').done, true);
+    expect(find.text('COMPLETADAS (1)'), findsOneWidget);
+    // Desde ahí vuelve a Para hacer.
+    await tester.tap(find.byKey(const Key('task-gear-Pintar la reja')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('task-unarchive')));
+    await tester.pumpAndSettle();
+    expect(s.tasksToDo, 2);
+    // Borrar: hay que tocar dos veces.
+    await tester.tap(find.byKey(const Key('task-gear-Sacar la basura')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('task-delete')));
+    await tester.pumpAndSettle();
+    expect(s.tasks.length, 2);
+    await tester.tap(find.byKey(const Key('task-delete')));
+    await tester.pumpAndSettle();
+    expect(s.tasks.map((t) => t.name), ['Pintar la reja']);
+    // Tildar la casilla también la completa.
+    await tester.tap(find.byKey(const Key('task-check-Pintar la reja')));
+    await tester.pumpAndSettle();
+    expect(s.tasksToDo, 0);
   });
 
-  testWidgets('ítems de adentro: bajar, editar y se ven solo al abrir', (
+  testWidgets('Tareas: programar para que suene crea el recordatorio', (
     tester,
   ) async {
     final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
-    final f = await s.addFolder('Alejandro', folderColors.first);
-    await s.addNotes(f, ['Compras']);
-    await s.replaceNote(
-      f,
-      f.items.single,
-      f.items.single.copyWith(sub: const [SubItem('Pan'), SubItem('Lehce')]),
-    );
+    final f = TaskFolder(name: 'General');
+    s.taskFolders.add(f);
+    await s.addTasks(f, ['Pagar el gas']);
+    final repo = MemoryReminderRepository();
     await tester.pumpWidget(
       MaterialApp(
-        home: NoteEditPage(settings: s, folder: f, note: f.items.single),
+        home: Scaffold(
+          body: TasksScreen(settings: s, reminders: repo),
+        ),
       ),
     );
-    await tester.tap(find.byTooltip('Bajar').first);
     await tester.pumpAndSettle();
-    expect(f.items.single.sub.map((x) => x.text), ['Lehce', 'Pan']);
-    await tester.tap(find.byTooltip('Editar').first);
+    await tester.tap(find.text('General'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('sub-edit')), 'Leche');
-    await tester.tap(find.byKey(const Key('sub-edit-save')));
+    await tester.tap(find.byKey(const Key('task-gear-Pagar el gas')));
     await tester.pumpAndSettle();
-    expect(f.items.single.sub.map((x) => x.text), ['Leche', 'Pan']);
-
-    // En la carpeta, cerrada muestra "(0/2)" y al tocarla se despliega.
-    await tester.pumpWidget(
-      MaterialApp(
-        home: FolderPage(settings: s, folder: f),
-      ),
-    );
-    expect(find.text('Compras  (0/2)'), findsOneWidget);
-    expect(find.text('Leche'), findsNothing);
-    await tester.tap(find.text('Compras  (0/2)'));
+    await tester.tap(find.byKey(const Key('task-ring')));
     await tester.pumpAndSettle();
-    expect(find.text('Leche'), findsOneWidget);
-  });
-
-  testWidgets('tildar un ítem no cierra la nota y avisa si quedan cosas', (
-    tester,
-  ) async {
-    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
-    final f = await s.addFolder('General', folderColors.first);
-    await s.addNotes(f, ['Compras']);
-    await s.replaceNote(
-      f,
-      f.items.single,
-      f.items.single.copyWith(sub: const [SubItem('Vino'), SubItem('Pan')]),
-    );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: FolderPage(settings: s, folder: f),
-      ),
-    );
-    await tester.tap(find.text('Compras  (0/2)'));
+    expect(find.text('¿Qué día y hora te aviso?'), findsOneWidget);
+    await tester.tap(find.text('Mañana 9:00'));
+    await tester.tap(find.byKey(const Key('ring-save')));
     await tester.pumpAndSettle();
-    // Checkbox 0 es la nota; 1 y 2, los ítems.
-    await tester.tap(find.byType(Checkbox).at(1));
+    final r = (await repo.watchAll().first).single;
+    expect(r.title, 'Pagar el gas');
+    expect(r.dueAt.hour, 9);
+    expect(s.tasks.single.reminderId, r.id);
+    // Archivarla da por hecho el recordatorio.
+    await tester.tap(find.byKey(const Key('task-gear-Pagar el gas')));
     await tester.pumpAndSettle();
-    expect(find.text('Pan'), findsOneWidget);
-    await tester.tap(find.text('Pan'));
+    await tester.tap(find.byKey(const Key('task-archive')));
     await tester.pumpAndSettle();
-    expect(find.text('Pan'), findsOneWidget);
-    // Dar por hecha la nota con un ítem sin tildar: pregunta.
-    await tester.tap(find.byType(Checkbox).first);
-    await tester.pumpAndSettle();
-    expect(find.text('Fijate: quedaron cosas por hacer'), findsOneWidget);
-    await tester.tap(find.text('Cancelar'));
-    await tester.pumpAndSettle();
-    expect(f.items.single.done, isFalse);
-  });
-
-  testWidgets('buscador: lleva al ítem de adentro de una nota', (tester) async {
-    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
-    final f = await s.addFolder('General', folderColors.first);
-    await s.addNotes(f, ['Compras']);
-    await s.replaceNote(
-      f,
-      f.items.single,
-      f.items.single.copyWith(sub: const [SubItem('Vino tinto')]),
-    );
-    await tester.pumpWidget(MaterialApp(home: NotebookPage(settings: s)));
-    await tester.enterText(find.byKey(const Key('notebook-search')), 'vino');
-    await tester.pumpAndSettle();
-    expect(find.text('En General › Compras'), findsOneWidget);
-    await tester.tap(find.text('Vino tinto'));
-    await tester.pumpAndSettle();
-    // Se abre la carpeta con la nota desplegada.
-    expect(find.text('Vino tinto'), findsOneWidget);
-    expect(find.text('Compras  (0/1)'), findsOneWidget);
-  });
-
-  testWidgets('buscador adentro de la carpeta', (tester) async {
-    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
-    final f = await s.addFolder('General', folderColors.first);
-    await s.addNotes(f, ['Compras', 'Llamar a Ignacio']);
-    await s.replaceNote(
-      f,
-      f.items.first,
-      f.items.first.copyWith(sub: const [SubItem('Vino'), SubItem('Pan')]),
-    );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: FolderPage(settings: s, folder: f),
-      ),
-    );
-    await tester.enterText(find.byKey(const Key('folder-search')), 'vino');
-    await tester.pumpAndSettle();
-    expect(find.text('Vino'), findsOneWidget);
-    expect(find.text('Llamar a Ignacio'), findsNothing);
-  });
-
-  testWidgets('cada tarea del mismo alto; al tocarla se abre entera', (
-    tester,
-  ) async {
-    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
-    final f = await s.addFolder('Taller', folderColors.first);
-    final long = List.filled(30, 'repuesto').join(' ');
-    await s.addNotes(f, ['Corta', long]);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: FolderPage(settings: s, folder: f),
-      ),
-    );
-    final short = tester.getSize(
-      find
-          .ancestor(of: find.text('Corta'), matching: find.byType(SizedBox))
-          .first,
-    );
-    final big = tester.getSize(
-      find.ancestor(of: find.text(long), matching: find.byType(SizedBox)).first,
-    );
-    expect(big.height, short.height);
-    await tester.tap(find.text(long));
-    await tester.pumpAndSettle();
-    expect(find.text('Editar nota'), findsOneWidget);
-  });
-
-  testWidgets('notas de texto libre: se anotan, se abren y se guardan', (
-    tester,
-  ) async {
-    final store = MemorySettingsStore();
-    final s = AppSettings(store, MemoryKeyStore());
-    final f = await s.addFolder('Impresiones', folderColors.first);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: FolderPage(settings: s, folder: f),
-      ),
-    );
-    await tester.tap(find.byKey(const Key('kind-memos')));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const Key('notebook-input')),
-      'Medidas del depósito: boca 42 mm',
-    );
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('notebook-send')));
-    await tester.pumpAndSettle();
-    expect(f.memos.single.heading, 'Medidas del depósito: boca 42 mm');
-    // No cuenta como pendiente.
-    expect(f.toDo, 0);
-
-    await tester.tap(find.text('Medidas del depósito: boca 42 mm'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('memo-title')), 'Depósito');
-    await tester.enterText(
-      find.byKey(const Key('memo-text')),
-      'Boca 42 mm\nAltura 18 cm',
-    );
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    expect(f.memos.single.title, 'Depósito');
-    expect(find.text('Depósito'), findsOneWidget);
-    // Se guarda en la libreta (y por eso va en la copia).
-    final back = NoteFolder.decodeAll(NoteFolder.encodeAll(s.folders));
-    expect(back.single.memos.single.text, 'Boca 42 mm\nAltura 18 cm');
-  });
-
-  testWidgets('libreta: elegir varias y borrarlas juntas', (tester) async {
-    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
-    final f = await s.addFolder('Taller', folderColors.first);
-    await s.addNotes(f, ['Uno', 'Dos', 'Tres']);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: FolderPage(settings: s, folder: f),
-      ),
-    );
-    await tester.tap(find.byKey(const Key('folder-pick')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Uno'));
-    await tester.tap(find.text('Tres'));
-    await tester.pumpAndSettle();
-    expect(find.text('2 elegidas'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('folder-pick-delete')));
-    await tester.pumpAndSettle();
-    expect(f.items.map((n) => n.text), ['Dos']);
-    await tester.tap(find.text('Deshacer'));
-    await tester.pumpAndSettle();
-    expect(f.items.map((n) => n.text), ['Uno', 'Dos', 'Tres']);
+    expect((await repo.getById(r.id!))!.done, true);
   });
 }

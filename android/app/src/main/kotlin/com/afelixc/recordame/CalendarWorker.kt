@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
 /**
- * Revisa el calendario con la app cerrada y trae lo nuevo a Te Recordaré.
+ * Revisa el calendario con la app cerrada y trae lo nuevo a Alerta Ya.
  *
  * Se despierta de dos formas:
  *  1. "cambio": Android avisa cuando cambia algo en el calendario del teléfono

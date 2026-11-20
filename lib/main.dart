@@ -8,6 +8,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
 import 'core/formatting.dart';
 import 'core/settings.dart';
+import 'features/notes/boxes.dart';
 import 'data/drift/database.dart';
 import 'data/drift/drift_reminder_repository.dart';
 import 'data/drift/drift_usage_repository.dart';
@@ -33,6 +34,7 @@ Future<void> main() async {
   if (kIsWeb) {
     final settings = AppSettings(MemorySettingsStore(), MemoryKeyStore());
     await settings.load(providerIds);
+    _sampleNotesAndTasks(settings);
     runApp(
       RecordameApp(
         settings: settings,
@@ -147,4 +149,47 @@ List<Reminder> _sampleReminders() {
     Reminder(title: 'Cumpleaños de mamá', dueAt: at(13, 10)),
     Reminder(title: 'Llamar al contador', dueAt: at(-2, 11), done: true),
   ];
+}
+
+/// Notas y Tareas de ejemplo para la vista web.
+void _sampleNotesAndTasks(AppSettings s) {
+  final now = DateTime.now();
+  DateTime ago(int d) => now.subtract(Duration(days: d));
+  final casa = NoteBox(folder: true, name: 'Casa', created: ago(1));
+  s.notes.addAll([
+    NoteBox(
+      folder: false,
+      name: 'Compras del súper',
+      created: now,
+      lines: const [
+        NoteLine('Lunes', size: LineSize.mediana, bold: true),
+        NoteLine('Pan', check: false),
+        NoteLine('Café', check: true),
+        NoteLine('Leche', check: false),
+        NoteLine('Ojo: pedir factura', background: 'amarillo'),
+      ],
+    ),
+    casa,
+    NoteBox(
+      folder: false,
+      name: 'Ideas para el finde',
+      created: ago(2),
+      lines: const [NoteLine('Ir a la costanera si no llueve.')],
+    ),
+    NoteBox(
+      folder: false,
+      name: 'Arreglos',
+      parent: casa.id,
+      lines: const [NoteLine('Cambiar el cuerito', check: false)],
+    ),
+  ]);
+  final general = TaskFolder(name: 'General', created: now);
+  final hogar = TaskFolder(name: 'Casa', created: ago(1));
+  s.taskFolders.addAll([general, hogar]);
+  s.tasks.addAll([
+    TaskItem(name: 'Comprar filamento', folder: general.id),
+    TaskItem(name: 'Pagar el gas', folder: general.id),
+    TaskItem(name: 'Arreglar la persiana', folder: hogar.id),
+    TaskItem(name: 'Sacar la basura', folder: hogar.id, done: true),
+  ]);
 }

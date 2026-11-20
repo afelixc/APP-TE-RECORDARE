@@ -234,7 +234,7 @@ class _BackupSectionState extends State<BackupSection> {
           error: s.backupError,
         ),
         Text(
-          'Se guardan tus recordatorios, la libreta, el chat y tus '
+          'Se guardan tus recordatorios, las notas, las tareas, el chat y tus '
           'preferencias en un archivo, en la carpeta que elijas (te '
           'recomiendo Google Drive: así no se pierde aunque se rompa el '
           'teléfono). Se actualiza sola una vez por día al usar la app.',

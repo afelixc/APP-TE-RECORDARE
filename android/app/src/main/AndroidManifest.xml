@@ -17,7 +17,7 @@
     <uses-permission android:name="android.permission.READ_CALENDAR"/>
     <uses-permission android:name="android.permission.WRITE_CALENDAR"/>
     <application
-        android:label="Te Recordaré"
+        android:label="Alerta Ya"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="true"
@@ -48,7 +48,7 @@
             android:targetActivity=".MainActivity"
             android:exported="true"
             android:enabled="true"
-            android:label="Te Recordaré"
+            android:label="Alerta Ya"
             android:icon="@mipmap/ic_launcher">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -60,7 +60,7 @@
             android:targetActivity=".MainActivity"
             android:exported="true"
             android:enabled="false"
-            android:label="Te Recordaré"
+            android:label="Alerta Ya"
             android:icon="@mipmap/ic_launcher_rojo">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -72,7 +72,7 @@
             android:targetActivity=".MainActivity"
             android:exported="true"
             android:enabled="false"
-            android:label="Te Recordaré"
+            android:label="Alerta Ya"
             android:icon="@mipmap/ic_launcher_naranja">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -84,7 +84,7 @@
             android:targetActivity=".MainActivity"
             android:exported="true"
             android:enabled="false"
-            android:label="Te Recordaré"
+            android:label="Alerta Ya"
             android:icon="@mipmap/ic_launcher_verde">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -96,7 +96,7 @@
             android:targetActivity=".MainActivity"
             android:exported="true"
             android:enabled="false"
-            android:label="Te Recordaré"
+            android:label="Alerta Ya"
             android:icon="@mipmap/ic_launcher_violeta">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -108,7 +108,7 @@
             android:targetActivity=".MainActivity"
             android:exported="true"
             android:enabled="false"
-            android:label="Te Recordaré"
+            android:label="Alerta Ya"
             android:icon="@mipmap/ic_launcher_negro">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -120,7 +120,7 @@
             android:targetActivity=".MainActivity"
             android:exported="true"
             android:enabled="false"
-            android:label="Te Recordaré"
+            android:label="Alerta Ya"
             android:icon="@mipmap/ic_launcher_blanco">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -132,7 +132,7 @@
             android:targetActivity=".MainActivity"
             android:exported="true"
             android:enabled="false"
-            android:label="Te Recordaré"
+            android:label="Alerta Ya"
             android:icon="@mipmap/ic_launcher_celeste">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>

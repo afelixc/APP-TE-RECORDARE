@@ -266,6 +266,8 @@ void main() {
       RecordameApp(reminders: repo, settings: sync.settings, calendar: sync),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('top-menu')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Configuración'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Google Calendar'), 100);
@@ -345,7 +347,7 @@ void main() {
       MaterialApp(home: BatteryHelpPage(check: () async => free)),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Android puede frenar a Te Recordaré'), findsOneWidget);
+    expect(find.text('Android puede frenar a Alerta Ya'), findsOneWidget);
     expect(
       find.textContaining('Google Calendar con la app cerrada'),
       findsOneWidget,
@@ -376,6 +378,8 @@ void main() {
         RecordameApp(reminders: repo, settings: sync.settings, calendar: sync),
       );
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('top-menu')));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Configuración'));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Google Calendar'), 100);
@@ -399,7 +403,7 @@ void main() {
       await tester.pumpAndSettle();
       final titles = (await inner.watchAll().first).map((r) => r.title);
       expect(titles, containsAll(['Turno', 'Asado']));
-      expect(find.text('Ya está en Te Recordaré'), findsNWidgets(2));
+      expect(find.text('Ya está en Alerta Ya'), findsNWidgets(2));
     },
   );
 
@@ -423,7 +427,7 @@ void main() {
   });
 
   test(
-    'lo borrado en el calendario del teléfono se borra de Te Recordaré',
+    'lo borrado en el calendario del teléfono se borra de Alerta Ya',
     () async {
       final (sync, repo, cal, inner) = await make();
       await sync.choose(

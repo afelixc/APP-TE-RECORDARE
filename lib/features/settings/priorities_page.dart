@@ -400,9 +400,7 @@ class _PriorityPageState extends State<PriorityPage> {
         : v == 1
         ? '1 vez'
         : '$v veces';
-    return _choice<int>('Cuántas veces suena', value, options, text, (
-      v,
-    ) async {
+    return _choice<int>('Cuántas veces suena', value, options, text, (v) async {
       if (v != other) return onChanged(v);
       final picked = await showDialog<int>(
         context: context,

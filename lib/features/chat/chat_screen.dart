@@ -3,14 +3,11 @@ import 'package:flutter/material.dart';
 import '../../core/app_scope.dart';
 import '../../core/formatting.dart';
 import '../../core/settings.dart';
-import '../help/modes_help.dart';
-import '../home/home_shell.dart';
-import '../notebook/notebook_page.dart';
-import '../notebook/notes.dart';
+import '../home/top_bar.dart';
 import '../reminders/reminder_form.dart';
 import 'ai_chat.dart';
 
-/// Pestaña principal. Con la IA lista muestra el chat; si no, el formulario
+/// Pestaña Mensaje. Con la IA lista muestra el chat; si no, el formulario
 /// para cargar a mano (modo gratis).
 class ChatScreen extends StatelessWidget {
   const ChatScreen({super.key});
@@ -22,13 +19,8 @@ class ChatScreen extends StatelessWidget {
       listenable: settings,
       builder: (context, _) => Column(
         children: [
-          ValueListenableBuilder(
-            valueListenable: chatCompact,
-            builder: (context, compact, _) => PlanBar(
-              settings: settings,
-              compact: compact && settings.aiReady,
-            ),
-          ),
+          if (settings.mode == UsageMode.ai && !settings.aiReady)
+            const _MissingKey(),
           Expanded(
             child: settings.aiReady
                 ? AiChat(key: ValueKey(settings.providerId), settings: settings)
@@ -40,91 +32,29 @@ class ChatScreen extends StatelessWidget {
   }
 }
 
-/// "Tu plan: Gratis | Con IA". El activo se ve resaltado y el otro en gris.
-class PlanBar extends StatelessWidget {
-  const PlanBar({super.key, required this.settings, this.compact = false});
-
-  final AppSettings settings;
-
-  /// Más chica mientras se ve un recordatorio recién guardado.
-  final bool compact;
+/// Con IA elegida pero sin clave: un aviso y el botón para cargarla.
+class _MissingKey extends StatelessWidget {
+  const _MissingKey();
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final missingKey = settings.mode == UsageMode.ai && !settings.aiReady;
-    final segStyle = compact ? const TextStyle(fontSize: 12) : null;
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, compact ? 0 : 4, 8, compact ? 0 : 4),
-      child: Column(
+      padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Text(
-                'Tu plan:',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontSize: compact ? 12 : null,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: SegmentedButton<UsageMode>(
-                  key: const Key('plan-selector'),
-                  showSelectedIcon: false,
-                  style: SegmentedButton.styleFrom(
-                    visualDensity: compact
-                        ? const VisualDensity(vertical: -4)
-                        : VisualDensity.compact,
-                    tapTargetSize: compact
-                        ? MaterialTapTargetSize.shrinkWrap
-                        : null,
-                    selectedBackgroundColor: scheme.primary,
-                    selectedForegroundColor: scheme.onPrimary,
-                    foregroundColor: scheme.onSurface.withValues(alpha: 0.45),
-                  ),
-                  segments: [
-                    ButtonSegment(
-                      value: UsageMode.free,
-                      label: Text('Gratis', style: segStyle),
-                    ),
-                    ButtonSegment(
-                      value: UsageMode.ai,
-                      label: Text('Con IA', style: segStyle),
-                    ),
-                  ],
-                  selected: {settings.mode},
-                  onSelectionChanged: (s) => settings.setMode(s.first),
-                ),
-              ),
-              IconButton(
-                tooltip: '¿Cómo funciona?',
-                visualDensity: compact
-                    ? const VisualDensity(vertical: -4)
-                    : null,
-                iconSize: compact ? 20 : null,
-                icon: const Icon(Icons.help_outline),
-                onPressed: () => showModesHelp(context),
-              ),
-            ],
-          ),
-          if (missingKey)
-            Row(
-              children: [
-                Icon(Icons.key_off, size: 18, color: scheme.error),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Falta tu clave de IA.',
-                    style: TextStyle(color: scheme.error),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => HomeShell.goToTab(context, 'Configuración'),
-                  child: const Text('Cargarla'),
-                ),
-              ],
+          Icon(Icons.key_off, size: 18, color: scheme.error),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Falta tu clave de IA.',
+              style: TextStyle(color: scheme.error),
             ),
+          ),
+          TextButton(
+            onPressed: () => openSettings(context),
+            child: const Text('Cargarla'),
+          ),
         ],
       ),
     );
@@ -159,24 +89,6 @@ class _ManualEntryState extends State<_ManualEntry> {
       controller: _scroll,
       padding: const EdgeInsets.all(16),
       children: [
-        // Los mismos dos botones que en el Chat con IA.
-        ListenableBuilder(
-          listenable: AppScope.of(context).settings,
-          builder: (context, _) {
-            final settings = AppScope.of(context).settings;
-            return NotebookShortcuts(
-              notebookToDo: notebookToDo(settings.folders),
-              onManual: () => _formKey.currentContext == null
-                  ? null
-                  : Scrollable.ensureVisible(
-                      _formKey.currentContext!,
-                      duration: const Duration(milliseconds: 300),
-                    ),
-              onNotebook: () => openNotebook(context, settings),
-            );
-          },
-        ),
-        const SizedBox(height: 8),
         if (_lastSaved != null) ChatBubble(text: _lastSaved!),
         const SizedBox(height: 8),
         Card(

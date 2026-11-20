@@ -180,7 +180,7 @@ void main() {
   );
 
   test(
-    'lo borrado o cambiado en Google se borra o cambia en Te Recordaré',
+    'lo borrado o cambiado en Google se borra o cambia en Alerta Ya',
     () async {
       final settings = AppSettings(MemorySettingsStore(), MemoryKeyStore());
       await settings.load(const []);
@@ -196,7 +196,7 @@ void main() {
       );
       await settings.setIcalUrl('https://calendar.google.com/x/basic.ics');
       final repo = MemoryReminderRepository([
-        // Uno cargado en Te Recordaré: no viene del link, no se toca.
+        // Uno cargado en Alerta Ya: no viene del link, no se toca.
         Reminder(title: 'Pagar la luz', dueAt: soon),
       ]);
       await sync.autoImport(repo);

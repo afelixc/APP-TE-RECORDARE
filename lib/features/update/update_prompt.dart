@@ -35,7 +35,7 @@ class _UpdatePromptState extends State<UpdatePrompt> {
         icon: const Icon(Icons.system_update),
         title: const Text('Hay una versión nueva'),
         content: const Text(
-          'Se bajó una versión nueva de Te Recordaré. '
+          'Se bajó una versión nueva de Alerta Ya. '
           'Tus recordatorios no se pierden al actualizar.',
         ),
         actions: [
@@ -74,7 +74,7 @@ class _UpdatePromptState extends State<UpdatePrompt> {
                 SnackBar(
                   content: Text(
                     event.status == OtaStatus.PERMISSION_NOT_GRANTED_ERROR
-                        ? 'Permití que Te Recordaré instale apps y probá de nuevo.'
+                        ? 'Permití que Alerta Ya instale apps y probá de nuevo.'
                         : 'No se pudo bajar la actualización. Probá más tarde.',
                   ),
                 ),

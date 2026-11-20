@@ -183,7 +183,7 @@ class AndroidDeviceCalendar implements DeviceCalendar {
   @override
   Future<void> cancelBackground() => _channel.invokeMethod('cancelarFondo');
 
-  /// Si Android deja a Te Recordaré funcionar sin restricciones de batería.
+  /// Si Android deja a Alerta Ya funcionar sin restricciones de batería.
   static Future<bool> batteryFree() async {
     try {
       return await _channel.invokeMethod<bool>('bateriaLibre') ?? false;

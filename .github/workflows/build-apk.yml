@@ -87,5 +87,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "v1.0.${{ github.run_number }}" Recordame.apk \
-            --title "Te Recordaré $VERSION" \
-            --notes "Descargá **Recordame.apk** desde el teléfono y abrilo para instalar. Si ya tenés Te Recordaré, al abrirla te ofrece actualizar sola."
+            --title "Alerta Ya $VERSION" \
+            --notes "Descargá **Recordame.apk** desde el teléfono y abrilo para instalar. Si ya tenés Alerta Ya, al abrirla te ofrece actualizar sola."

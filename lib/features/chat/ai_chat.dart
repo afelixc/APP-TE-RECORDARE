@@ -15,9 +15,6 @@ import '../reminders/priority_chooser.dart';
 import '../reminders/reminder_editor.dart';
 import 'chat_screen.dart';
 import 'dictation.dart';
-import '../notebook/notebook_page.dart';
-import '../notebook/notes.dart';
-import 'examples_sheet.dart';
 import 'talking_panel.dart';
 
 enum _Status { thinking, saved, question, error }
@@ -49,13 +46,8 @@ class _Last {
       _Last(status, said: said, items: [...items]..[i] = item, text: text);
 }
 
-/// Chat con IA: el usuario habla o escribe, la IA arma el recordatorio y queda
-/// guardado y activo enseguida; después se puede modificar o cancelar.
-/// Prendido mientras se ve un recordatorio recién guardado: la pantalla del
-/// Chat se achica (barra del plan, solapas, micrófono) para que entre la
-/// tarjeta entera con la prioridad, sin deslizar (pedido del usuario).
-final chatCompact = ValueNotifier<bool>(false);
-
+/// Mensaje (con IA): el usuario habla o escribe, la IA arma el recordatorio y
+/// queda guardado y activo enseguida; después se puede modificar o cancelar.
 /// El micrófono de arriba (Almanaque, Listado, Configuración) pide hablar:
 /// al abrirse el Chat empieza a escuchar solo.
 bool talkWhenChatOpens = false;
@@ -72,13 +64,13 @@ class AiChat extends StatefulWidget {
   State<AiChat> createState() => _AiChatState();
 }
 
-class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
+class _AiChatState extends State<AiChat> {
   final _input = TextEditingController();
   final _dictation = Dictation();
-  late final _tabs = TabController(length: 2, vsync: this);
-  List<ChatEntry> get _history => widget.settings.chatHistory;
-
   _Last? _last;
+
+  /// "Último recordatorio" abierto (si no, la campana y el micrófono grande).
+  bool _showLast = false;
 
   /// El micrófono chico dicta en el recuadro de texto, en vez de mandar.
   bool _dictatingIntoField = false;
@@ -106,8 +98,6 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
     _dictation.removeListener(_onDictation);
     _dictation.dispose();
     _input.dispose();
-    _tabs.dispose();
-    chatCompact.value = false;
     super.dispose();
   }
 
@@ -144,7 +134,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
     // Se esconde el teclado para que se vea la tarjeta entera.
     FocusManager.instance.primaryFocus?.unfocus();
     _input.clear();
-    _tabs.animateTo(0);
+    _showLast = true;
     widget.settings.addChat(ChatEntry(text, mine: true, at: DateTime.now()));
     setState(() => _last = _Last(_Status.thinking, said: text));
 
@@ -221,7 +211,10 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
   void _startOver() {
     _previousRequest = null;
     _alreadySaved.clear();
-    setState(() => _last = null);
+    setState(() {
+      _last = null;
+      _showLast = false;
+    });
     widget.settings.addChat(
       ChatEntry(
         'Listo, empezamos de nuevo. Decime qué querés que te recuerde y cuándo.',
@@ -292,6 +285,30 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
     );
   }
 
+  /// Abre o cierra "Último recordatorio". Si en esta vuelta todavía no se
+  /// pidió nada, muestra el último que se cargó.
+  Future<void> _toggleLast() async {
+    if (_showLast) {
+      setState(() => _showLast = false);
+      return;
+    }
+    if (_last == null) {
+      final all = await AppScope.of(context).reminders.watchAll().first;
+      if (!mounted) return;
+      Reminder? latest;
+      for (final r in all) {
+        if (latest == null || (r.id ?? 0) > (latest.id ?? 0)) latest = r;
+      }
+      if (latest != null) {
+        _last = _Last(
+          _Status.saved,
+          items: [_Item(latest, active: !latest.done)],
+        );
+      }
+    }
+    setState(() => _showLast = true);
+  }
+
   Future<void> _startTalking() async {
     _dictatingIntoField = false;
     final ok = await _dictation.start(language: widget.settings.language);
@@ -321,7 +338,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
     _Last(
       _Status.error,
       text:
-          'No pude usar el micrófono. Permití el acceso al micrófono para Te Recordaré '
+          'No pude usar el micrófono. Permití el acceso al micrófono para Alerta Ya '
           'en los ajustes del teléfono, o escribilo.',
     ),
     'No pude usar el micrófono.',
@@ -331,87 +348,176 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final talking = _dictation.active && !_dictatingIntoField;
-    final compact =
-        _last?.status == _Status.saved && _last!.items.any((i) => i.active);
-    if (chatCompact.value != compact) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) chatCompact.value = compact;
-      });
-    }
+    final scheme = Theme.of(context).colorScheme;
+    final mic = _BigMic(
+      small: _showLast,
+      onPressed: _thinking || _dictatingIntoField || talking
+          ? null
+          : _startTalking,
+    );
     return Column(
       children: [
-        TabBar(
-          controller: _tabs,
-          labelStyle: compact ? const TextStyle(fontSize: 14) : null,
-          unselectedLabelStyle: compact ? const TextStyle(fontSize: 14) : null,
-          tabs: [
-            Tab(text: 'Último recordatorio', height: compact ? 32 : null),
-            Tab(text: 'Chat completo', height: compact ? 32 : null),
-          ],
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabs,
-            // Deslizar el dedo cambia la solapa de abajo (Chat → Almanaque…);
-            // estas dos se cambian tocándolas.
-            physics: const NeverScrollableScrollPhysics(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+          child: Row(
             children: [
-              ListenableBuilder(
-                listenable: widget.settings,
-                builder: (context, _) => _LastView(
-                  last: _last,
-                  notebookToDo: notebookToDo(widget.settings.folders),
-                  providerName: providerById(widget.settings.providerId).name,
-                  onExamples: () => showExamples(context),
-                  onManual: () => showReminderEditor(context),
-                  onNotebook: () => openNotebook(context, widget.settings),
-                  onModify: _modify,
-                  onCancel: _cancel,
-                  onRestore: _restore,
-                  onPriority: (i, p) => _setPriority(i, priority: p),
-                  onLoud: (i, v) => _setPriority(i, loud: v),
-                  onStartOver: _startOver,
+              Expanded(
+                child: _TopButton(
+                  key: const Key('show-last'),
+                  icon: Icons.history,
+                  label: 'Último recordatorio',
+                  on: _showLast,
+                  onPressed: _toggleLast,
                 ),
               ),
-              _HistoryView(
-                messages: _history,
-                onClear: () async {
-                  await widget.settings.clearChat();
-                  setState(() {});
-                },
+              const SizedBox(width: 8),
+              Expanded(
+                child: _TopButton(
+                  key: const Key('manual-entry'),
+                  icon: Icons.edit_calendar_outlined,
+                  label: 'Cargar a mano',
+                  onPressed: () => showReminderEditor(context),
+                ),
               ),
             ],
           ),
         ),
-        Material(
-          elevation: 3,
-          color: Theme.of(context).colorScheme.surface,
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(12, compact ? 6 : 10, 12, 8),
-              child: talking
-                  ? TalkingPanel(
-                      text: _dictation.text,
-                      onCancel: _dictation.cancel,
-                      onSend: _sendTalking,
-                    )
-                  : _Composer(
-                      compact: compact,
-                      input: _input,
-                      busy: _thinking,
-                      dictatingIntoField: _dictatingIntoField,
-                      onTalk: _startTalking,
-                      onFieldMic: _toggleFieldDictation,
-                      onSend: () async {
-                        if (_dictatingIntoField) await _toggleFieldDictation();
-                        _send(_input.text);
-                      },
+        Expanded(
+          child: _showLast
+              ? Column(
+                  children: [
+                    Expanded(
+                      child: ListenableBuilder(
+                        listenable: widget.settings,
+                        builder: (context, _) => _LastView(
+                          last: _last,
+                          providerName: providerById(widget.settings.providerId)
+                              .name,
+                          onModify: _modify,
+                          onCancel: _cancel,
+                          onRestore: _restore,
+                          onPriority: (i, p) => _setPriority(i, priority: p),
+                          onLoud: (i, v) => _setPriority(i, loud: v),
+                          onStartOver: _startOver,
+                        ),
+                      ),
                     ),
-            ),
-          ),
+                    if (!talking) mic,
+                  ],
+                )
+              : Column(
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: Icon(
+                          Icons.notifications,
+                          size: 96,
+                          color: scheme.onSurface.withValues(alpha: 0.1),
+                        ),
+                      ),
+                    ),
+                    if (!talking) mic,
+                  ],
+                ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+          child: talking
+              ? TalkingPanel(
+                  text: _dictation.text,
+                  onCancel: _dictation.cancel,
+                  onSend: _sendTalking,
+                )
+              : _Composer(
+                  input: _input,
+                  busy: _thinking,
+                  dictatingIntoField: _dictatingIntoField,
+                  onFieldMic: _toggleFieldDictation,
+                  onSend: () async {
+                    if (_dictatingIntoField) await _toggleFieldDictation();
+                    _send(_input.text);
+                  },
+                ),
         ),
       ],
+    );
+  }
+}
+
+/// Botones de arriba de Mensaje ("Último recordatorio", "Cargar a mano").
+class _TopButton extends StatelessWidget {
+  const _TopButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.on = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool on;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(38),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        backgroundColor: on ? scheme.primaryContainer : null,
+        foregroundColor: scheme.onSurface,
+        side: BorderSide(color: scheme.outline),
+      ),
+      icon: Icon(icon, size: 20),
+      label: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(label, maxLines: 1, style: const TextStyle(fontSize: 14.5)),
+      ),
+      onPressed: onPressed,
+    );
+  }
+}
+
+/// El micrófono naranja de Mensaje: grande al entrar y más chico con el
+/// último recordatorio a la vista.
+class _BigMic extends StatelessWidget {
+  const _BigMic({required this.small, required this.onPressed});
+
+  final bool small;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final size = small ? 64.0 : 92.0;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10, top: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: size,
+            height: size,
+            child: FloatingActionButton.large(
+              key: const Key('big-mic'),
+              heroTag: 'mic',
+              tooltip: 'Hablar',
+              shape: const CircleBorder(),
+              backgroundColor: scheme.secondary,
+              foregroundColor: Colors.white,
+              onPressed: onPressed,
+              child: Icon(Icons.mic, size: small ? 30 : 40),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tocá para hablar',
+            style: TextStyle(fontSize: small ? 12.5 : 15),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -422,10 +528,6 @@ class _LastView extends StatelessWidget {
   const _LastView({
     required this.last,
     required this.providerName,
-    required this.onExamples,
-    required this.onManual,
-    required this.onNotebook,
-    required this.notebookToDo,
     required this.onModify,
     required this.onCancel,
     required this.onRestore,
@@ -436,10 +538,6 @@ class _LastView extends StatelessWidget {
 
   final _Last? last;
   final String providerName;
-  final VoidCallback onExamples;
-  final VoidCallback onManual;
-  final VoidCallback onNotebook;
-  final int notebookToDo;
   final ValueChanged<int> onModify;
   final ValueChanged<int> onCancel;
   final ValueChanged<int> onRestore;
@@ -462,54 +560,17 @@ class _LastView extends StatelessWidget {
       ),
     );
 
-    // Arriba la frase chica con "Ejemplos" al lado; abajo dos botones
-    // grandes iguales, de distinto color, que se agrandan al tocarlos.
-    final shortcuts = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Tocá el micrófono y decime qué querés que te recuerde y '
-                'cuándo.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontSize: 11,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                visualDensity: const VisualDensity(
-                  horizontal: -3,
-                  vertical: -3,
-                ),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                textStyle: const TextStyle(fontSize: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              icon: const Icon(Icons.lightbulb_outline, size: 14),
-              label: const Text('Ejemplos'),
-              onPressed: onExamples,
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        NotebookShortcuts(
-          notebookToDo: notebookToDo,
-          onManual: onManual,
-          onNotebook: onNotebook,
-        ),
-      ],
-    );
-
     if (last == null) {
-      return ListView(padding: const EdgeInsets.all(16), children: [shortcuts]);
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Todavía no cargaste ningún recordatorio.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 15, color: scheme.onSurfaceVariant),
+          ),
+        ),
+      );
     }
 
     final said = last.said;
@@ -642,143 +703,7 @@ class _LastView extends StatelessWidget {
             ],
           ),
         },
-        const SizedBox(height: 12),
-        shortcuts,
       ],
-    );
-  }
-}
-
-/// Los dos botones: "Cargar a mano recordatorios" (azul) y "Libreta"
-/// (amarillo, con lo pendiente). Iguales en el Chat con IA y en el gratis.
-class NotebookShortcuts extends StatelessWidget {
-  const NotebookShortcuts({
-    super.key,
-    required this.notebookToDo,
-    required this.onManual,
-    required this.onNotebook,
-  });
-
-  final int notebookToDo;
-  final VoidCallback onManual;
-  final VoidCallback onNotebook;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: _BigButton(
-              icon: Icons.edit_note,
-              label: 'Cargar a mano\nrecordatorios',
-              color: scheme.primary,
-              onPressed: onManual,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _BigButton(
-              key: const Key('open-notebook'),
-              icon: Icons.menu_book_outlined,
-              label: 'Libreta',
-              badge: ToDoBadge(notebookToDo),
-              big: true,
-              color: const Color(0xFFC98A00),
-              onPressed: onNotebook,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Botón grande (Cargar a mano / Libreta): al tocarlo se agranda y entra.
-/// Lo usa también el modo gratis ([NotebookShortcuts]).
-class _BigButton extends StatefulWidget {
-  const _BigButton({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onPressed,
-    this.badge,
-    this.big = false,
-  });
-
-  /// Letra y dibujo un poco más grandes (la Libreta, pedido del usuario).
-  final bool big;
-
-  /// Va en el segundo renglón, en lugar de texto (p. ej. "2 por hacer").
-  final Widget? badge;
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onPressed;
-
-  @override
-  State<_BigButton> createState() => _BigButtonState();
-}
-
-class _BigButtonState extends State<_BigButton> {
-  bool _big = false;
-
-  Future<void> _tap() async {
-    setState(() => _big = true);
-    await Future<void>.delayed(const Duration(milliseconds: 220));
-    if (!mounted) return;
-    widget.onPressed();
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    if (mounted) setState(() => _big = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = widget.color;
-    return AnimatedScale(
-      scale: _big ? 1.12 : 1,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-      child: Material(
-        color: c.withValues(alpha: 0.12),
-        elevation: _big ? 6 : 0,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(color: c, width: 2),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: _tap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(widget.icon, size: widget.big ? 26 : 22, color: c),
-                const SizedBox(height: 2),
-                Text(
-                  widget.label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  style: TextStyle(
-                    color: c,
-                    fontWeight: FontWeight.w800,
-                    fontSize: widget.big ? 16 : 13.5,
-                    height: 1.15,
-                  ),
-                ),
-                if (widget.badge != null) ...[
-                  const SizedBox(height: 1),
-                  FittedBox(fit: BoxFit.scaleDown, child: widget.badge!),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -877,9 +802,14 @@ class _ReminderCard extends StatelessWidget {
   }
 }
 
-/// Solapa "Chat completo": todo lo hablado, guardado en el teléfono.
-class _HistoryView extends StatelessWidget {
-  const _HistoryView({required this.messages, required this.onClear});
+/// "Chat completo" (en Configuración): todo lo hablado, guardado en el
+/// teléfono.
+class ChatHistoryView extends StatelessWidget {
+  const ChatHistoryView({
+    super.key,
+    required this.messages,
+    required this.onClear,
+  });
 
   final List<ChatEntry> messages;
   final VoidCallback onClear;
@@ -954,24 +884,20 @@ class _HistoryView extends StatelessWidget {
   }
 }
 
-/// Botón grande para hablar y, debajo, un recuadro chico para escribir.
+/// Abajo de Mensaje: "O escribilo acá…" con el micrófono chico adentro y el
+/// botón redondo para enviar.
 class _Composer extends StatelessWidget {
   const _Composer({
-    this.compact = false,
     required this.input,
     required this.busy,
     required this.dictatingIntoField,
-    required this.onTalk,
     required this.onFieldMic,
     required this.onSend,
   });
 
-  /// Con un recordatorio a la vista, el micrófono un poco más chico.
-  final bool compact;
   final TextEditingController input;
   final bool busy;
   final bool dictatingIntoField;
-  final VoidCallback onTalk;
   final VoidCallback onFieldMic;
   final VoidCallback onSend;
 
@@ -979,66 +905,59 @@ class _Composer extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+    return Row(
       children: [
-        SizedBox(
-          width: compact ? 52 : 64,
-          height: compact ? 52 : 64,
-          child: FloatingActionButton.large(
-            heroTag: 'mic',
-            tooltip: 'Hablar',
-            backgroundColor: scheme.secondary,
-            foregroundColor: scheme.onSecondary,
-            onPressed: busy || dictatingIntoField ? null : onTalk,
-            child: Icon(Icons.mic, size: compact ? 26 : 30),
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          'Tocá para hablar',
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: compact ? 11 : null,
-          ),
-        ),
-        SizedBox(height: compact ? 4 : 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                key: const Key('chat-input'),
-                controller: input,
-                textCapitalization: TextCapitalization.sentences,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => onSend(),
-                style: theme.textTheme.bodyMedium,
-                decoration: InputDecoration(
-                  hintText: 'O escribilo acá…',
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  suffixIcon: IconButton(
-                    tooltip: dictatingIntoField
-                        ? 'Dejar de dictar'
-                        : 'Dictar en el recuadro',
-                    icon: Icon(
-                      dictatingIntoField ? Icons.stop_circle : Icons.mic_none,
-                      color: dictatingIntoField ? scheme.error : null,
-                    ),
-                    onPressed: busy ? null : onFieldMic,
-                  ),
+        Expanded(
+          child: TextField(
+            key: const Key('chat-input'),
+            controller: input,
+            textCapitalization: TextCapitalization.sentences,
+            textInputAction: TextInputAction.send,
+            onSubmitted: (_) => onSend(),
+            style: const TextStyle(fontSize: 15.5),
+            decoration: InputDecoration(
+              hintText: 'O escribilo acá…',
+              isDense: true,
+              filled: true,
+              fillColor: theme.brightness == Brightness.dark
+                  ? scheme.surfaceContainerHighest
+                  : const Color(0xFFE6E7EE),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(22),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(22),
+                borderSide: BorderSide.none,
+              ),
+              suffixIcon: IconButton(
+                tooltip: dictatingIntoField
+                    ? 'Dejar de dictar'
+                    : 'Dictar en el recuadro',
+                icon: Icon(
+                  dictatingIntoField ? Icons.stop_circle : Icons.mic_none,
+                  color: dictatingIntoField ? scheme.error : null,
                 ),
+                onPressed: busy ? null : onFieldMic,
               ),
             ),
-            const SizedBox(width: 6),
-            IconButton.filled(
-              tooltip: 'Enviar',
-              onPressed: busy ? null : onSend,
-              icon: const Icon(Icons.send, size: 20),
-            ),
-          ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 42,
+          height: 42,
+          child: IconButton.filled(
+            key: const Key('chat-send'),
+            tooltip: 'Enviar',
+            padding: EdgeInsets.zero,
+            onPressed: busy ? null : onSend,
+            icon: const Icon(Icons.send, size: 20),
+          ),
         ),
       ],
     );

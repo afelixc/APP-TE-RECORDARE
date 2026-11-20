@@ -185,13 +185,13 @@ class BackupService {
       j = jsonDecode(text) as Map<String, dynamic>;
     } catch (_) {
       throw const BackupException(
-        'Ese archivo no es una copia de Te Recordaré. Elegí el archivo '
+        'Ese archivo no es una copia de Alerta Ya. Elegí el archivo '
         '"Recordame-copia…".',
       );
     }
     if (j['formato'] != format) {
       throw const BackupException(
-        'Ese archivo no es una copia de Te Recordaré. Elegí el archivo '
+        'Ese archivo no es una copia de Alerta Ya. Elegí el archivo '
         '"Recordame-copia…".',
       );
     }
