@@ -28,8 +28,7 @@ App Android (Flutter) **Alerta Ya** (antes Te Recordaré / Recordame): pasar a l
   `applicationId`, paquete `recordame`.
 - La Libreta se pasa sola a Notas y Tareas (`migrateNotebook`) — eligió el usuario "pasarlo solo".
 - Configuración y Ejemplos van en el menú ⋮; el chat completo en Configuración → "Chat completo".
-- Recuadros de Notas/Tareas: mismo alto, nombre en 1 renglón con la misma letra (hasta 20; los que necesitarían
-  < 15 se cortan con "…"), "pendientes" abajo alineado — pedido del usuario.
+- Recuadros de Notas/Tareas: mismo alto (`boxCardHeight`, 176) y "pendientes" abajo alineado — pedido del usuario.
 - Prioridad con 3 puntitos (elegido más grande con anillo negro) — como en la versión minimalista.
 - Notificaciones como la minimalista: Normal/Media/Alta/Ejemplo; la normal también tiene veces/repetir/durante/vibrar;
   "No repetir" en todas; "Aviso en 10 segundos".
@@ -52,7 +51,7 @@ App Android (Flutter) **Alerta Ya** (antes Te Recordaré / Recordame): pasar a l
   ("Aviso en 10 segundos"), que no se pueden ver en la compu.
 - De la minimalista pueden faltar detalles chicos no verificados (textos como "Plan gratis · tocá para usar la IA",
   registro de acciones "Hecho ✓: … (desde la notificación)" en el chat completo).
-- Almanaque y Listado quedaron como estaban (no se comparó a fondo con la minimalista).
+- Listado quedó como estaba (no se comparó a fondo con la minimalista).
 
 ## Próximos pasos
 1. Preguntar cómo quedó la 3.5 en el teléfono y corregir lo que pida.
