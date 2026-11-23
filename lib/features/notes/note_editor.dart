@@ -270,6 +270,9 @@ class _NoteEditorState extends State<NoteEditor> {
   /// las ya tildadas); destildar lo sube abajo de las que faltan.
   void _toggleCheck(_Line line) {
     final done = !(line.style.check ?? false);
+    final cur = _current >= 0 && _current < _lines.length
+        ? _lines[_current]
+        : null;
     setState(() {
       line.style = line.style.copyWith(check: done);
       final i = _lines.indexOf(line);
@@ -293,7 +296,7 @@ class _NoteEditorState extends State<NoteEditor> {
         }
       }
       _lines.insert(to, line);
-      if (_current == i) _current = to;
+      _current = cur == null ? -1 : _lines.indexOf(cur);
     });
     _save();
   }

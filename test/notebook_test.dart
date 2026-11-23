@@ -266,20 +266,24 @@ void main() {
     ]);
     await tester.tap(find.byKey(const Key('note-check-0')));
     await tester.pumpAndSettle();
-    expect(n.lines.first.check, true);
+    // La tildada baja al final, abajo de las que faltan.
+    expect(n.lines.map((l) => (l.text, l.check)), [
+      ('Leche', false),
+      ('Pan', true),
+    ]);
     expect(n.pendingChecks, 1);
     await tester.tap(find.byKey(const Key('tool-neg')));
     await tester.pumpAndSettle();
-    expect(n.lines.last.bold, true);
+    expect(n.lines.first.bold, true);
     await tester.tap(find.byKey(const Key('tool-tam')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('size-grande')));
     await tester.pumpAndSettle();
-    expect(n.lines.last.size, LineSize.grande);
+    expect(n.lines.first.size, LineSize.grande);
     // Borrar la marca del principio junta el renglón con el de arriba.
-    await tester.enterText(field.last, 'Leche');
+    await tester.enterText(field.last, 'Pan');
     await tester.pumpAndSettle();
-    expect(n.lines.map((l) => l.text), ['PanLeche']);
+    expect(n.lines.map((l) => l.text), ['LechePan']);
   });
 
   testWidgets('Tareas: carpeta, agregar, archivar, volver y borrar', (
