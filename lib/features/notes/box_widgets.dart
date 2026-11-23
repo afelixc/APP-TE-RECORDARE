@@ -1007,8 +1007,24 @@ Future<bool> confirmFolderDelete(
   required int count,
   required String one,
   required String many,
+}) => confirmDelete(
+  context,
+  title: '¿Borrar «$name»?',
+  text:
+      'Mirá que adentro tenés ${count == 1 ? '1 $one' : '$count $many'}. '
+      'Se borra${count == 1 ? '' : 'n'} con la carpeta.',
+  ok: 'Borrar todo',
+);
+
+/// Cartel en el medio de la pantalla para confirmar un borrado: Cancelar y
+/// el botón rojo del mismo tamaño, con el texto en el medio.
+Future<bool> confirmDelete(
+  BuildContext context, {
+  required String title,
+  required String text,
+  required String ok,
 }) async {
-  final ok = await showDialog<bool>(
+  final yes = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
       key: const Key('folder-delete-confirm'),
@@ -1017,10 +1033,9 @@ Future<bool> confirmFolderDelete(
         color: pendingRed,
         size: 40,
       ),
-      title: Text('¿Borrar «$name»?'),
+      title: Text(title),
       content: Text(
-        'Mirá que adentro tenés ${count == 1 ? '1 $one' : '$count $many'}. '
-        'Se borra${count == 1 ? '' : 'n'} con la carpeta.',
+        text,
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 16),
       ),
@@ -1047,7 +1062,7 @@ Future<bool> confirmFolderDelete(
                   minimumSize: const Size.fromHeight(46),
                 ),
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Borrar todo', textAlign: TextAlign.center),
+                child: Text(ok, textAlign: TextAlign.center),
               ),
             ),
           ],
@@ -1055,5 +1070,5 @@ Future<bool> confirmFolderDelete(
       ],
     ),
   );
-  return ok ?? false;
+  return yes ?? false;
 }

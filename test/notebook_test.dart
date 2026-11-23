@@ -359,6 +359,10 @@ void main() {
     expect(find.text('Borrar solo las tildadas (2)'), findsOneWidget);
     await tester.tap(find.byKey(const Key('note-delete-checked')));
     await tester.pumpAndSettle();
+    // Primer toque: pide seguridad, todavía no borra.
+    expect(n.lines.length, 3);
+    await tester.tap(find.byKey(const Key('note-delete-checked')));
+    await tester.pumpAndSettle();
     expect(n.lines.map((l) => l.text), ['Pan']);
     await tester.tap(find.text('Deshacer'));
     await tester.pumpAndSettle();
@@ -367,6 +371,60 @@ void main() {
     await tester.tap(find.byKey(const Key('note-sort')));
     await tester.pumpAndSettle();
     expect(n.lines.map((l) => l.text), ['Pan', 'Leche', 'Queso']);
+  });
+
+  testWidgets('editor: borrar la nota entera: dos toques, Aceptar y Deshacer', (
+    tester,
+  ) async {
+    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
+    final n = NoteBox(
+      folder: false,
+      name: 'Turno',
+      lines: [const NoteLine('Llevar estudios')],
+    );
+    s.notes.add(n);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => NoteEditor(settings: s, note: n),
+                ),
+              ),
+              child: const Text('abrir'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('note-delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('note-delete-all')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('note-delete-all')));
+    await tester.pumpAndSettle();
+    // Cartel en el medio: Cancelar no borra.
+    expect(find.text('¿Borrar «Turno»?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('folder-delete-cancel')));
+    await tester.pumpAndSettle();
+    expect(s.notes, [n]);
+    await tester.tap(find.byKey(const Key('note-delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('note-delete-all')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('note-delete-all')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('folder-delete-ok')));
+    await tester.pumpAndSettle();
+    expect(s.notes, isEmpty);
+    expect(find.text('abrir'), findsOneWidget);
+    await tester.tap(find.text('Deshacer'));
+    await tester.pumpAndSettle();
+    expect(s.notes, [n]);
   });
 
   testWidgets('Tareas: borrar carpeta con tareas pide 3 pasos y se deshace', (

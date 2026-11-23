@@ -337,14 +337,16 @@ class _NoteEditorState extends State<NoteEditor> {
     if (_empty) widget.settings.deleteNoteBox(widget.note);
   }
 
-  /// El tacho despliega dos opciones: borrar solo las tildadas o la nota
-  /// entera (esta con dos toques). Las dos dejan "Deshacer" 5 segundos.
+  /// El tacho despliega dos opciones (pedido del usuario): borrar solo las
+  /// tildadas (dos toques y Deshacer) o la nota entera (dos toques, cartel
+  /// Cancelar / Aceptar en el medio y Deshacer).
   Future<void> _delete() async {
     final done = _lines.where((l) => l.style.check == true).length;
     final what = await showAppSheet<String>(
       context: context,
       builder: (context) {
         var sure = false;
+        var sureChecked = false;
         return StatefulBuilder(
           builder: (context, setSheet) => Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
@@ -362,13 +364,30 @@ class _NoteEditorState extends State<NoteEditor> {
                 ListTile(
                   key: const Key('note-delete-checked'),
                   enabled: done > 0,
-                  leading: const Icon(Icons.playlist_remove, color: appBlue),
+                  tileColor: sureChecked ? pendingRed : null,
+                  textColor: sureChecked ? Colors.white : null,
+                  iconColor: sureChecked ? Colors.white : appBlue,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  leading: const Icon(Icons.playlist_remove),
                   title: Text(
                     done == 0
                         ? 'Borrar solo las tildadas (no hay)'
+                        : sureChecked
+                        ? '¿Seguro? Tocá otra vez para borrar $done'
                         : 'Borrar solo las tildadas ($done)',
                   ),
-                  onTap: () => Navigator.pop(context, 'tildadas'),
+                  onTap: () {
+                    if (!sureChecked) {
+                      setSheet(() {
+                        sureChecked = true;
+                        sure = false;
+                      });
+                      return;
+                    }
+                    Navigator.pop(context, 'tildadas');
+                  },
                 ),
                 ListTile(
                   key: const Key('note-delete-all'),
@@ -380,11 +399,16 @@ class _NoteEditorState extends State<NoteEditor> {
                   ),
                   leading: const Icon(Icons.delete),
                   title: Text(
-                    sure ? '¿Seguro? Tocá otra vez' : 'Borrar la nota entera',
+                    sure
+                        ? '¿Seguro que querés borrarla? Tocá otra vez'
+                        : 'Borrar la nota entera',
                   ),
                   onTap: () {
                     if (!sure) {
-                      setSheet(() => sure = true);
+                      setSheet(() {
+                        sure = true;
+                        sureChecked = false;
+                      });
                       return;
                     }
                     Navigator.pop(context, 'nota');
@@ -401,6 +425,16 @@ class _NoteEditorState extends State<NoteEditor> {
       _deleteChecked();
       return;
     }
+    final title = widget.note.name.trim().isEmpty
+        ? 'esta nota'
+        : '«${widget.note.name.trim()}»';
+    final ok = await confirmDelete(
+      context,
+      title: '¿Borrar $title?',
+      text: 'Se borra la nota entera, con todo lo que tiene adentro.',
+      ok: 'Aceptar',
+    );
+    if (!ok || !mounted) return;
     final s = widget.settings;
     final note = widget.note;
     final messenger = ScaffoldMessenger.of(context);
