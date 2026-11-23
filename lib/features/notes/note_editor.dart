@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/sheets.dart';
 
@@ -93,29 +92,6 @@ class _NoteEditorState extends State<NoteEditor> {
   _Pop? _pop;
   bool _fixing = false;
 
-  /// Pantalla siempre prendida mientras se tilda (se suelta al salir).
-  static const _screen = MethodChannel('recordame/pantalla');
-  bool _awake = false;
-
-  Future<void> _setAwake(bool on) async {
-    try {
-      await _screen.invokeMethod('prendida', {'on': on});
-    } catch (_) {
-      // Sin el canal (pruebas): no pasa nada.
-    }
-  }
-
-  void _toggleAwake() {
-    setState(() => _awake = !_awake);
-    _setAwake(_awake);
-    toast(
-      context,
-      _awake
-          ? 'La pantalla se queda prendida'
-          : 'La pantalla vuelve a apagarse sola',
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -131,7 +107,6 @@ class _NoteEditorState extends State<NoteEditor> {
 
   @override
   void dispose() {
-    if (_awake) _setAwake(false);
     _title.dispose();
     _titleFocus.dispose();
     for (final l in _lines) {
@@ -433,24 +408,13 @@ class _NoteEditorState extends State<NoteEditor> {
     s.deleteNoteBox(note);
     Navigator.pop(context);
     final name = note.name.isEmpty ? 'Sin título' : note.name;
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          'Borrada: $name',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        duration: const Duration(seconds: 5),
-        persist: false,
-        action: SnackBarAction(
-          label: 'Deshacer',
-          onPressed: () {
-            if (!s.notes.contains(note)) s.notes.add(note);
-            s.saveNoteBoxes();
-          },
-        ),
-      ),
+    undoToastOn(
+      messenger,
+      'Borrada: $name',
+      onUndo: () {
+        if (!s.notes.contains(note)) s.notes.add(note);
+        s.saveNoteBoxes();
+      },
     );
   }
 
@@ -796,20 +760,7 @@ class _NoteEditorState extends State<NoteEditor> {
                         onSubmitted: (_) => _titleSubmitted(),
                       ),
                     ),
-                    IconButton(
-                      key: const Key('note-awake'),
-                      tooltip: 'Mantener la pantalla prendida',
-                      style: _awake
-                          ? IconButton.styleFrom(
-                              backgroundColor: appBlue,
-                              foregroundColor: Colors.white,
-                            )
-                          : null,
-                      icon: Icon(
-                        _awake ? Icons.lightbulb : Icons.lightbulb_outline,
-                      ),
-                      onPressed: _toggleAwake,
-                    ),
+                    const KeepAwakeButton(buttonKey: Key('note-awake')),
                     IconButton(
                       key: const Key('note-sort'),
                       tooltip: 'Ordenar de la A a la Z',

@@ -156,7 +156,36 @@ void _sampleNotesAndTasks(AppSettings s) {
   final now = DateTime.now();
   DateTime ago(int d) => now.subtract(Duration(days: d));
   final casa = NoteBox(folder: true, name: 'Casa', created: ago(1));
+  final ale = NoteBox(folder: true, name: 'Alejandro', created: ago(1));
   s.notes.addAll([
+    ale,
+    NoteBox(
+      folder: false,
+      name: 'Compras',
+      parent: ale.id,
+      created: ago(1),
+      lines: [
+        const NoteLine('Pan', check: false),
+        const NoteLine('Queso', check: false),
+        const NoteLine('Yerba', check: false),
+        const NoteLine('Leche', check: true),
+        const NoteLine('Fideos', check: true),
+      ],
+    ),
+    NoteBox(
+      folder: false,
+      name: 'Turno médico',
+      parent: ale.id,
+      created: ago(2),
+      lines: [const NoteLine('Llevar los estudios')],
+    ),
+    NoteBox(
+      folder: false,
+      name: 'Regalo de cumpleaños',
+      parent: ale.id,
+      created: ago(3),
+      lines: [const NoteLine('Ideas: libro, campera')],
+    ),
     NoteBox(
       folder: false,
       name: 'Compras del súper',

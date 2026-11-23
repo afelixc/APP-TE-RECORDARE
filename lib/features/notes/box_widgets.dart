@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/sheets.dart';
 import 'boxes.dart';
@@ -872,23 +873,66 @@ void toast(BuildContext context, String text) {
   );
 }
 
-/// Cartelito de abajo con "Deshacer" durante 5 segundos (pedido del
-/// usuario). [onGone] corre cuando se va sin deshacer (p. ej. para borrar
-/// recién ahí los recordatorios de las tareas).
+/// Cartelito de abajo con "Deshacer" (en el medio) durante 5 segundos
+/// (pedido del usuario). [onGone] corre cuando se va sin deshacer (p. ej.
+/// para borrar recién ahí los recordatorios de las tareas).
 void undoToast(
   BuildContext context,
   String text, {
   required VoidCallback onUndo,
   VoidCallback? onGone,
+}) => undoToastOn(
+  ScaffoldMessenger.of(context),
+  text,
+  onUndo: onUndo,
+  onGone: onGone,
+);
+
+void undoToastOn(
+  ScaffoldMessengerState m,
+  String text, {
+  required VoidCallback onUndo,
+  VoidCallback? onGone,
 }) {
-  final m = ScaffoldMessenger.of(context);
   m.hideCurrentSnackBar();
   final c = m.showSnackBar(
     SnackBar(
-      content: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
       duration: const Duration(seconds: 5),
       persist: false,
-      action: SnackBarAction(label: 'Deshacer', onPressed: onUndo),
+      content: Builder(
+        builder: (context) {
+          final accent = Theme.of(context).colorScheme.inversePrimary;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              OutlinedButton.icon(
+                key: const Key('undo'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: accent,
+                  side: BorderSide(color: accent, width: 1.5),
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(Icons.undo, size: 18),
+                label: const Text(
+                  'Deshacer',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                onPressed: () {
+                  onUndo();
+                  m.hideCurrentSnackBar(reason: SnackBarClosedReason.action);
+                },
+              ),
+            ],
+          );
+        },
+      ),
     ),
   );
   if (onGone != null) {
@@ -896,6 +940,63 @@ void undoToast(
       if (r != SnackBarClosedReason.action) onGone();
     });
   }
+}
+
+/// Lamparita: mantiene la pantalla prendida mientras está a la vista (en
+/// una nota o en una carpeta de Tareas). Se suelta sola al salir.
+class KeepAwakeButton extends StatefulWidget {
+  const KeepAwakeButton({super.key, this.buttonKey});
+
+  final Key? buttonKey;
+
+  @override
+  State<KeepAwakeButton> createState() => _KeepAwakeButtonState();
+}
+
+class _KeepAwakeButtonState extends State<KeepAwakeButton> {
+  static const _screen = MethodChannel('recordame/pantalla');
+  bool _on = false;
+
+  Future<void> _set(bool on) async {
+    try {
+      await _screen.invokeMethod('prendida', {'on': on});
+    } catch (_) {
+      // Sin el canal (pruebas, vista web): no pasa nada.
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_on) _set(false);
+    super.dispose();
+  }
+
+  void _toggle() {
+    setState(() => _on = !_on);
+    _set(_on);
+    toast(
+      context,
+      _on
+          ? '💡 Pantalla prendida: no se va a apagar sola'
+          : 'Listo: la pantalla vuelve a apagarse sola',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    key: widget.buttonKey,
+    tooltip: _on
+        ? 'Dejar que la pantalla se apague'
+        : 'Mantener la pantalla prendida',
+    style: _on
+        ? IconButton.styleFrom(
+            backgroundColor: const Color(0xFFF2B705),
+            foregroundColor: Colors.black,
+          )
+        : null,
+    icon: Icon(_on ? Icons.lightbulb : Icons.lightbulb_outline),
+    onPressed: _toggle,
+  );
 }
 
 /// Tercer paso para borrar una carpeta que tiene cosas adentro: avisa
@@ -920,19 +1021,36 @@ Future<bool> confirmFolderDelete(
       content: Text(
         'Mirá que adentro tenés ${count == 1 ? '1 $one' : '$count $many'}. '
         'Se borra${count == 1 ? '' : 'n'} con la carpeta.',
+        textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 16),
       ),
+      // Los dos del mismo tamaño, con el texto en el medio (pedido).
       actions: [
-        OutlinedButton(
-          key: const Key('folder-delete-cancel'),
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          key: const Key('folder-delete-ok'),
-          style: FilledButton.styleFrom(backgroundColor: pendingRed),
-          onPressed: () => Navigator.pop(context, true),
-          child: const Text('Borrar todo'),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                key: const Key('folder-delete-cancel'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(46),
+                ),
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar', textAlign: TextAlign.center),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton(
+                key: const Key('folder-delete-ok'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: pendingRed,
+                  minimumSize: const Size.fromHeight(46),
+                ),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Borrar todo', textAlign: TextAlign.center),
+              ),
+            ),
+          ],
         ),
       ],
     ),

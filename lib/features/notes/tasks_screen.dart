@@ -845,6 +845,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     color: folder.color,
                     onBack: () => _enter(null),
                     actions: [
+                      const KeepAwakeButton(buttonKey: Key('task-awake')),
                       IconButton(
                         key: const Key('task-folder-gear'),
                         tooltip: 'Nombre y color',
