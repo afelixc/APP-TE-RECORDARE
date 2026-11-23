@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/settings.dart';
 import 'box_widgets.dart';
@@ -91,6 +92,29 @@ class _NoteEditorState extends State<NoteEditor> {
   bool _sureDelete = false;
   bool _fixing = false;
 
+  /// Pantalla siempre prendida mientras se tilda (se suelta al salir).
+  static const _screen = MethodChannel('recordame/pantalla');
+  bool _awake = false;
+
+  Future<void> _setAwake(bool on) async {
+    try {
+      await _screen.invokeMethod('prendida', {'on': on});
+    } catch (_) {
+      // Sin el canal (pruebas): no pasa nada.
+    }
+  }
+
+  void _toggleAwake() {
+    setState(() => _awake = !_awake);
+    _setAwake(_awake);
+    toast(
+      context,
+      _awake
+          ? 'La pantalla se queda prendida'
+          : 'La pantalla vuelve a apagarse sola',
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -106,6 +130,7 @@ class _NoteEditorState extends State<NoteEditor> {
 
   @override
   void dispose() {
+    if (_awake) _setAwake(false);
     _title.dispose();
     _titleFocus.dispose();
     for (final l in _lines) {
@@ -241,12 +266,79 @@ class _NoteEditorState extends State<NoteEditor> {
     if (!line.focus.hasFocus) _focusAt(line, line.controller.text.length);
   }
 
+  /// Tildar manda el renglón abajo de su lista de casillas (queda arriba de
+  /// las ya tildadas); destildar lo sube abajo de las que faltan.
   void _toggleCheck(_Line line) {
-    setState(
-      () =>
-          line.style = line.style.copyWith(check: !(line.style.check ?? false)),
-    );
+    final done = !(line.style.check ?? false);
+    setState(() {
+      line.style = line.style.copyWith(check: done);
+      final i = _lines.indexOf(line);
+      var a = i;
+      while (a > 0 && _lines[a - 1].style.isCheck) {
+        a--;
+      }
+      var b = i;
+      while (b + 1 < _lines.length && _lines[b + 1].style.isCheck) {
+        b++;
+      }
+      _lines.removeAt(i);
+      int to;
+      if (done) {
+        to = b; // al final del bloque
+      } else {
+        // después del último sin tildar del bloque
+        to = a;
+        for (var k = a; k < b; k++) {
+          if (_lines[k].style.check == false) to = k + 1;
+        }
+      }
+      _lines.insert(to, line);
+      if (_current == i) _current = to;
+    });
     _save();
+  }
+
+  static String _plain(String t) => t
+      .toLowerCase()
+      .replaceAll(RegExp('[áàä]'), 'a')
+      .replaceAll(RegExp('[éèë]'), 'e')
+      .replaceAll(RegExp('[íìï]'), 'i')
+      .replaceAll(RegExp('[óòö]'), 'o')
+      .replaceAll(RegExp('[úùü]'), 'u')
+      .trim();
+
+  /// Ordena de la A a la Z cada lista de casillas: primero las que faltan,
+  /// después las tildadas (también de la A a la Z).
+  void _sortAlpha() {
+    final out = <_Line>[];
+    var i = 0;
+    while (i < _lines.length) {
+      if (!_lines[i].style.isCheck) {
+        out.add(_lines[i++]);
+        continue;
+      }
+      final block = <_Line>[];
+      while (i < _lines.length && _lines[i].style.isCheck) {
+        block.add(_lines[i++]);
+      }
+      int cmp(_Line x, _Line y) =>
+          _plain(x.controller.content).compareTo(_plain(y.controller.content));
+      out.addAll([
+        ...block.where((l) => l.style.check == false).toList()..sort(cmp),
+        ...block.where((l) => l.style.check == true).toList()..sort(cmp),
+      ]);
+    }
+    final cur = _current >= 0 && _current < _lines.length
+        ? _lines[_current]
+        : null;
+    setState(() {
+      _lines
+        ..clear()
+        ..addAll(out);
+      _current = cur == null ? -1 : _lines.indexOf(cur);
+    });
+    _save();
+    toast(context, 'Ordenadas de la A a la Z');
   }
 
   void _titleSubmitted() {
@@ -303,6 +395,7 @@ class _NoteEditorState extends State<NoteEditor> {
   Widget _lineRow(_Line line, ColorScheme scheme) {
     final s = line.style;
     return Row(
+      key: ObjectKey(line),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (s.isCheck)
@@ -567,6 +660,28 @@ class _NoteEditorState extends State<NoteEditor> {
                         onChanged: (_) => _save(),
                         onSubmitted: (_) => _titleSubmitted(),
                       ),
+                    ),
+                    IconButton(
+                      key: const Key('note-awake'),
+                      tooltip: 'Mantener la pantalla prendida',
+                      style: _awake
+                          ? IconButton.styleFrom(
+                              backgroundColor: appBlue,
+                              foregroundColor: Colors.white,
+                            )
+                          : null,
+                      icon: Icon(
+                        _awake
+                            ? Icons.lightbulb
+                            : Icons.lightbulb_outline,
+                      ),
+                      onPressed: _toggleAwake,
+                    ),
+                    IconButton(
+                      key: const Key('note-sort'),
+                      tooltip: 'Ordenar de la A a la Z',
+                      icon: const Icon(Icons.sort_by_alpha),
+                      onPressed: _sortAlpha,
                     ),
                     IconButton(
                       key: const Key('note-delete'),

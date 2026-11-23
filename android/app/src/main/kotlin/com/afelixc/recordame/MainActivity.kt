@@ -100,6 +100,18 @@ class MainActivity : FlutterActivity() {
         val voiceChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "recordame/voz")
         val voice = VoiceChannel(this, voiceChannel)
         voiceChannel.setMethodCallHandler { call, result -> voice.onCall(call, result) }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "recordame/pantalla")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "prendida" -> {
+                        val on = call.argument<Boolean>("on") ?: false
+                        if (on) window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "recordame/icono")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
