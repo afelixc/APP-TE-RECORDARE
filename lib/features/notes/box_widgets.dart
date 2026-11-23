@@ -871,3 +871,71 @@ void toast(BuildContext context, String text) {
     SnackBar(content: Text(text), duration: const Duration(milliseconds: 2600)),
   );
 }
+
+/// Cartelito de abajo con "Deshacer" durante 5 segundos (pedido del
+/// usuario). [onGone] corre cuando se va sin deshacer (p. ej. para borrar
+/// recién ahí los recordatorios de las tareas).
+void undoToast(
+  BuildContext context,
+  String text, {
+  required VoidCallback onUndo,
+  VoidCallback? onGone,
+}) {
+  final m = ScaffoldMessenger.of(context);
+  m.hideCurrentSnackBar();
+  final c = m.showSnackBar(
+    SnackBar(
+      content: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+      duration: const Duration(seconds: 5),
+      persist: false,
+      action: SnackBarAction(label: 'Deshacer', onPressed: onUndo),
+    ),
+  );
+  if (onGone != null) {
+    c.closed.then((r) {
+      if (r != SnackBarClosedReason.action) onGone();
+    });
+  }
+}
+
+/// Tercer paso para borrar una carpeta que tiene cosas adentro: avisa
+/// cuántas notas o tareas se van con ella.
+Future<bool> confirmFolderDelete(
+  BuildContext context, {
+  required String name,
+  required int count,
+  required String one,
+  required String many,
+}) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      key: const Key('folder-delete-confirm'),
+      icon: const Icon(
+        Icons.warning_amber_rounded,
+        color: pendingRed,
+        size: 40,
+      ),
+      title: Text('¿Borrar «$name»?'),
+      content: Text(
+        'Mirá que adentro tenés ${count == 1 ? '1 $one' : '$count $many'}. '
+        'Se borra${count == 1 ? '' : 'n'} con la carpeta.',
+        style: const TextStyle(fontSize: 16),
+      ),
+      actions: [
+        OutlinedButton(
+          key: const Key('folder-delete-cancel'),
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          key: const Key('folder-delete-ok'),
+          style: FilledButton.styleFrom(backgroundColor: pendingRed),
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Borrar todo'),
+        ),
+      ],
+    ),
+  );
+  return ok ?? false;
+}

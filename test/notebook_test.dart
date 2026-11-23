@@ -209,12 +209,23 @@ void main() {
     await tester.tap(find.text('Casa'));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('folder-back')), findsOneWidget);
+    // Adentro de una carpeta solo se crean notas: sin filtro ni menú.
     expect(
-      find.text(
-        'Acá no hay nada todavía.\nTocá + para crear una carpeta o una nota.',
-      ),
+      find.text('Todavía no hay notas acá.\nTocá + para crear una nota.'),
       findsOneWidget,
     );
+    expect(find.byKey(const Key('notes-filter')), findsNothing);
+    await tester.tap(find.byKey(const Key('notes-add')));
+    await tester.pumpAndSettle();
+    expect(find.text('Nueva carpeta'), findsNothing);
+    expect(find.byKey(const Key('note-title-field')), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('note-title-field')), 'Pan');
+    await tester.tap(find.byKey(const Key('note-back')));
+    await tester.pumpAndSettle();
+    expect(s.notes.where((n) => !n.folder).single.parent, s.notes.first.id);
+    s.notes.removeWhere((n) => !n.folder);
+    await s.saveNoteBoxes();
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('folder-back')));
     await tester.pumpAndSettle();
     expect(find.text('Casa'), findsOneWidget);
@@ -284,6 +295,118 @@ void main() {
     await tester.enterText(field.last, 'Pan');
     await tester.pumpAndSettle();
     expect(n.lines.map((l) => l.text), ['LechePan']);
+  });
+
+  testWidgets('Notas: borrar carpeta con notas pide 3 pasos y se deshace', (
+    tester,
+  ) async {
+    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
+    final f = NoteBox(folder: true, name: 'Alejandro');
+    s.notes
+      ..add(f)
+      ..add(NoteBox(folder: false, name: 'Uno', parent: f.id))
+      ..add(NoteBox(folder: false, name: 'Dos', parent: f.id));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: NotesScreen(settings: s)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('note-folder-Alejandro')),
+        matching: find.byIcon(Icons.settings),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('gear-delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('gear-delete')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('adentro tenés 2 notas'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('folder-delete-ok')));
+    await tester.pumpAndSettle();
+    expect(s.notes, isEmpty);
+    expect(find.text('Deshacer'), findsOneWidget);
+    await tester.tap(find.text('Deshacer'));
+    await tester.pumpAndSettle();
+    expect(s.notes.length, 3);
+    expect(find.text('Alejandro'), findsOneWidget);
+  });
+
+  testWidgets('editor: borrar solo las tildadas y deshacer', (tester) async {
+    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
+    final n = NoteBox(
+      folder: false,
+      name: 'Súper',
+      lines: [
+        const NoteLine('Pan', check: false),
+        const NoteLine('Leche', check: true),
+        const NoteLine('Queso', check: true),
+      ],
+    );
+    s.notes.add(n);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: NoteEditor(settings: s, note: n),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('note-delete')));
+    await tester.pumpAndSettle();
+    expect(find.text('Borrar solo las tildadas (2)'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('note-delete-checked')));
+    await tester.pumpAndSettle();
+    expect(n.lines.map((l) => l.text), ['Pan']);
+    await tester.tap(find.text('Deshacer'));
+    await tester.pumpAndSettle();
+    expect(n.lines.map((l) => l.text), ['Pan', 'Leche', 'Queso']);
+    // Ordenar de la A a la Z: las que faltan arriba, las tildadas abajo.
+    await tester.tap(find.byKey(const Key('note-sort')));
+    await tester.pumpAndSettle();
+    expect(n.lines.map((l) => l.text), ['Pan', 'Leche', 'Queso']);
+  });
+
+  testWidgets('Tareas: borrar carpeta con tareas pide 3 pasos y se deshace', (
+    tester,
+  ) async {
+    final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
+    final f = TaskFolder(name: 'Casa');
+    s.taskFolders.add(f);
+    await s.addTasks(f, ['Pintar', 'Barrer']);
+    final repo = MemoryReminderRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TasksScreen(settings: s, reminders: repo),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Casa'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('task-folder-delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('task-folder-delete')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('adentro tenés 2 tareas'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('folder-delete-cancel')));
+    await tester.pumpAndSettle();
+    expect(s.taskFolders.length, 1);
+    await tester.tap(find.byKey(const Key('task-folder-delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('task-folder-delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('folder-delete-ok')));
+    await tester.pumpAndSettle();
+    expect(s.taskFolders, isEmpty);
+    expect(s.tasks, isEmpty);
+    await tester.tap(find.text('Deshacer'));
+    await tester.pumpAndSettle();
+    expect(s.taskFolders.single.name, 'Casa');
+    expect(s.tasks.map((t) => t.name), ['Pintar', 'Barrer']);
   });
 
   testWidgets('Tareas: carpeta, agregar, archivar, volver y borrar', (

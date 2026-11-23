@@ -11,7 +11,8 @@ import 'note_editor.dart';
 enum _Filter { all, folders, notes }
 
 /// Solapa Notas: carpetas y notas mezcladas, lo último arriba. Las notas
-/// pueden ir sueltas o adentro de carpetas (y las carpetas, en otras).
+/// pueden ir sueltas o adentro de carpetas. Adentro de una carpeta solo se
+/// crean notas (pedido del usuario: sin carpetas dentro de carpetas).
 class NotesScreen extends StatefulWidget {
   const NotesScreen({super.key, this.settings});
 
@@ -86,7 +87,8 @@ class _NotesScreenState extends State<NotesScreen> {
       name: n.name,
       color: n.color,
       folder: n.folder,
-      canMove: true,
+      // Una carpeta solo se mueve si quedó adentro de otra (de antes).
+      canMove: !n.folder || n.parent != null,
       hasInside: notesInside(_s.notes, n.id).isNotEmpty,
     );
     if (!mounted || a == null) return;
@@ -109,11 +111,37 @@ class _NotesScreenState extends State<NotesScreen> {
       case GearAction.move:
         await _move(n);
       case GearAction.delete:
-        await _s.deleteNoteBox(n);
-        if (mounted) {
-          toast(context, 'Borrado: ${n.name.isEmpty ? 'Sin título' : n.name}');
-        }
+        await _delete(n);
     }
+  }
+
+  /// Borra con "Deshacer" 5 segundos. Una carpeta con notas adentro pide
+  /// antes una confirmación más.
+  Future<void> _delete(NoteBox n) async {
+    final inside = notesInside(_s.notes, n.id);
+    final notes = inside.where((x) => !x.folder).length;
+    if (n.folder && notes > 0) {
+      final ok = await confirmFolderDelete(
+        context,
+        name: n.name,
+        count: notes,
+        one: 'nota',
+        many: 'notas',
+      );
+      if (!ok || !mounted) return;
+    }
+    final gone = [n, ...inside];
+    await _s.deleteNoteBox(n);
+    if (!mounted) return;
+    final name = n.name.isEmpty ? 'Sin título' : n.name;
+    undoToast(
+      context,
+      n.folder ? 'Borrada la carpeta: $name' : 'Borrada: $name',
+      onUndo: () {
+        _s.notes.addAll(gone.where((x) => !_s.notes.contains(x)));
+        _s.saveNoteBoxes();
+      },
+    );
   }
 
   String _path(String id) {
@@ -125,10 +153,10 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Future<void> _move(NoteBox n) async {
-    final skip = {n.id, for (final x in notesInside(_s.notes, n.id)) x.id};
-    final targets = _s.notes
-        .where((x) => x.folder && !skip.contains(x.id))
-        .toList();
+    // Las notas van a una carpeta de afuera; las carpetas, solo afuera.
+    final targets = n.folder
+        ? <NoteBox>[]
+        : _s.notes.where((x) => x.folder && x.parent == null).toList();
     final picked = await showAppSheet<(String?,)>(
       context: context,
       isScrollControlled: true,
@@ -232,7 +260,7 @@ class _NotesScreenState extends State<NotesScreen> {
                 if (_folder == null) return true;
                 return notesInside(_s.notes, _folder!).contains(n);
               }).toList();
-        items = switch (_filter) {
+        items = switch (folder == null ? _filter : _Filter.all) {
           _Filter.all => items,
           _Filter.folders => items.where((n) => n.folder).toList(),
           _Filter.notes => items.where((n) => !n.folder).toList(),
@@ -252,74 +280,92 @@ class _NotesScreenState extends State<NotesScreen> {
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
+                if (folder == null) ...[
+                  const SizedBox(width: 6),
+                  PopupMenuButton<_Filter>(
+                    tooltip: 'Filtro',
+                    onSelected: (f) => setState(() => _filter = f),
+                    itemBuilder: (_) => [
+                      for (final (f, t, i) in [
+                        (_Filter.all, 'Todo', Icons.apps),
+                        (
+                          _Filter.folders,
+                          'Solo carpetas',
+                          Icons.folder_outlined,
+                        ),
+                        (
+                          _Filter.notes,
+                          'Solo notas',
+                          Icons.description_outlined,
+                        ),
+                      ])
+                        PopupMenuItem(
+                          value: f,
+                          child: Row(
+                            children: [
+                              Icon(i),
+                              const SizedBox(width: 14),
+                              Expanded(child: Text(t)),
+                              if (_filter == f)
+                                const Icon(Icons.check, color: appBlue),
+                            ],
+                          ),
+                        ),
+                    ],
+                    child: IgnorePointer(
+                      child: SquareButton(
+                        key: const Key('notes-filter'),
+                        icon: Icons.filter_list,
+                        tooltip: 'Filtro',
+                        on: _filter != _Filter.all,
+                        onPressed: () {},
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(width: 6),
-                PopupMenuButton<_Filter>(
-                  tooltip: 'Filtro',
-                  onSelected: (f) => setState(() => _filter = f),
-                  itemBuilder: (_) => [
-                    for (final (f, t, i) in [
-                      (_Filter.all, 'Todo', Icons.apps),
-                      (_Filter.folders, 'Solo carpetas', Icons.folder_outlined),
-                      (_Filter.notes, 'Solo notas', Icons.description_outlined),
-                    ])
+                if (folder != null)
+                  SquareButton(
+                    key: const Key('notes-add'),
+                    icon: Icons.add,
+                    tooltip: 'Nueva nota',
+                    onPressed: _newNote,
+                  )
+                else
+                  PopupMenuButton<bool>(
+                    key: const Key('notes-add'),
+                    tooltip: 'Nueva carpeta o nota',
+                    onSelected: (folder) => folder ? _newFolder() : _newNote(),
+                    itemBuilder: (_) => const [
                       PopupMenuItem(
-                        value: f,
+                        value: true,
                         child: Row(
                           children: [
-                            Icon(i),
-                            const SizedBox(width: 14),
-                            Expanded(child: Text(t)),
-                            if (_filter == f)
-                              const Icon(Icons.check, color: appBlue),
+                            Icon(Icons.create_new_folder_outlined),
+                            SizedBox(width: 14),
+                            Text('Nueva carpeta'),
                           ],
                         ),
                       ),
-                  ],
-                  child: IgnorePointer(
-                    child: SquareButton(
-                      key: const Key('notes-filter'),
-                      icon: Icons.filter_list,
-                      tooltip: 'Filtro',
-                      on: _filter != _Filter.all,
-                      onPressed: () {},
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                PopupMenuButton<bool>(
-                  key: const Key('notes-add'),
-                  tooltip: 'Nueva carpeta o nota',
-                  onSelected: (folder) => folder ? _newFolder() : _newNote(),
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: true,
-                      child: Row(
-                        children: [
-                          Icon(Icons.create_new_folder_outlined),
-                          SizedBox(width: 14),
-                          Text('Nueva carpeta'),
-                        ],
+                      PopupMenuItem(
+                        value: false,
+                        child: Row(
+                          children: [
+                            Icon(Icons.note_add_outlined),
+                            SizedBox(width: 14),
+                            Text('Nueva nota'),
+                          ],
+                        ),
+                      ),
+                    ],
+                    child: IgnorePointer(
+                      child: SquareButton(
+                        icon: Icons.add,
+                        tooltip: 'Nueva carpeta o nota',
+                        onPressed: () {},
                       ),
                     ),
-                    PopupMenuItem(
-                      value: false,
-                      child: Row(
-                        children: [
-                          Icon(Icons.note_add_outlined),
-                          SizedBox(width: 14),
-                          Text('Nueva nota'),
-                        ],
-                      ),
-                    ),
-                  ],
-                  child: IgnorePointer(
-                    child: SquareButton(
-                      icon: Icons.add,
-                      tooltip: 'Nueva carpeta o nota',
-                      onPressed: () {},
-                    ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -330,7 +376,11 @@ class _NotesScreenState extends State<NotesScreen> {
                   horizontal: 10,
                 ),
                 child: Text(
-                  q.isNotEmpty ? 'No hay nada con «${_search.text.trim()}».' : 'Acá no hay nada todavía.\nTocá + para crear una carpeta o una nota.',
+                  q.isNotEmpty
+                      ? 'No hay nada con «${_search.text.trim()}».'
+                      : folder == null
+                      ? 'Acá no hay nada todavía.\nTocá + para crear una carpeta o una nota.'
+                      : 'Todavía no hay notas acá.\nTocá + para crear una nota.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,

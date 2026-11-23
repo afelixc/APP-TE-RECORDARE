@@ -1,0 +1,156 @@
+<title>Alerta Ya · Borrar y deshacer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+<style>
+/* Layout: fila de teléfonos chicos, cada uno con un paso; se apilan en el celular */
+:root{
+  --bg:#EEF0F6; --fg:#1E2230; --muted:#5B6172; --phone:#FFFFFF; --line:#D9DCE6;
+  --blue:#2F55A4; --red:#D32F2F; --rosa:#FBE4E4; --verde:#2E8B57; --amar:#D99A00;
+  --amar-bg:#FFF6D9; --verde-bg:#E5F4EA; --snack:#2B2F3A; --snack-fg:#FFFFFF; --link:#9CC0FF;
+  --body:'Roboto',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14161C; --fg:#E7E9F0; --muted:#A3A9B8; --phone:#1F222B; --line:#343846;
+  --blue:#8FB0F0; --red:#FF6B6B; --rosa:#3A2226; --verde:#6FCF97; --amar:#F2C14E;
+  --amar-bg:#3A3220; --verde-bg:#1F3328; --snack:#E7E9F0; --snack-fg:#1E2230; --link:#2F55A4; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14161C; --fg:#E7E9F0; --muted:#A3A9B8; --phone:#1F222B; --line:#343846;
+  --blue:#8FB0F0; --red:#FF6B6B; --rosa:#3A2226; --verde:#6FCF97; --amar:#F2C14E;
+  --amar-bg:#3A3220; --verde-bg:#1F3328; --snack:#E7E9F0; --snack-fg:#1E2230; --link:#2F55A4; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+h1{font-size:24px;margin:0 0 4px;text-wrap:balance}
+.intro{color:var(--muted);margin:0 0 20px;max-width:65ch}
+.row{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px;align-items:start}
+.step{display:flex;flex-direction:column;gap:8px;min-width:0}
+.step h2{font-size:15px;margin:0;color:var(--blue);letter-spacing:.02em}
+.step p{margin:0;color:var(--muted);font-size:13.5px}
+.phone{background:var(--phone);border:2px solid var(--line);border-radius:22px;overflow:hidden;position:relative;min-height:400px;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:8px;padding:12px;border-bottom:1px solid var(--line);font-size:18px;font-weight:500}
+.top .sp{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ic{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:16px;flex:none}
+.ic.on{background:var(--red);color:#fff}
+.bar{display:flex;gap:6px;padding:10px 12px}
+.search{flex:1;border:1px solid var(--line);border-radius:20px;padding:7px 12px;color:var(--muted);font-size:13px}
+.sq{width:34px;height:34px;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;font-size:20px;color:var(--blue)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 12px 12px}
+.card{border:2px solid var(--amar);background:var(--amar-bg);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:4px;min-height:84px}
+.card .h{display:flex;justify-content:space-between;font-size:18px}
+.card b{font-size:15px;color:var(--fg)}
+.card small{color:var(--muted);font-size:12px}
+.card .pend{color:var(--red);font-size:12px;font-weight:500}
+.card.folder{border-color:var(--verde);background:var(--verde-bg)}
+.lines{padding:12px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
+.ln{display:flex;gap:10px;align-items:center;font-size:16px}
+.cb{width:18px;height:18px;border:2px solid var(--fg);border-radius:3px;flex:none;display:grid;place-items:center;font-size:12px}
+.cb.x{background:var(--blue);border-color:var(--blue);color:#fff}
+.ln.done span{text-decoration:line-through;color:var(--muted)}
+.shade{position:absolute;inset:0;background:rgba(0,0,0,.35)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--phone);border-radius:18px 18px 0 0;padding:14px;display:flex;flex-direction:column;gap:6px}
+.sheet .t{font-weight:600;font-size:16px;padding:0 6px 4px}
+.opt{display:flex;gap:12px;align-items:center;padding:11px 10px;border-radius:8px;font-size:14.5px}
+.opt.red{background:var(--red);color:#fff}
+.dialog{position:absolute;left:14px;right:14px;top:90px;background:var(--phone);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:10px;text-align:center}
+.dialog .warn{font-size:34px;color:var(--red)}
+.dialog b{font-size:17px}
+.btns{display:flex;gap:8px;justify-content:flex-end}
+.btn{border:1px solid var(--line);border-radius:18px;padding:8px 14px;font-size:14px}
+.btn.fill{background:var(--red);color:#fff;border-color:var(--red)}
+.snack{position:absolute;left:10px;right:10px;bottom:10px;background:var(--snack);color:var(--snack-fg);border-radius:8px;padding:11px 12px;display:flex;justify-content:space-between;gap:8px;font-size:13.5px}
+.snack a{color:var(--link);font-weight:700;text-decoration:none}
+.note{font-size:12px;color:var(--muted);padding:4px 12px}
+</style>
+
+<h1>Notas y Tareas: borrar con cuidado</h1>
+<p class="intro">Así quedaría. Cada recuadro es un paso. Lo que se borra se puede recuperar con <b>Deshacer</b> durante 5 segundos, en Notas y en Tareas.</p>
+
+<div class="row">
+  <div class="step">
+    <h2>1 · Adentro de la carpeta</h2>
+    <p>Adentro de «Alejandro» el + crea una nota directamente. No hay carpetas adentro de carpetas ni filtro.</p>
+    <div class="phone">
+      <div class="top"><span>←</span><span style="color:var(--verde)">📁</span><span class="sp">Alejandro</span></div>
+      <div class="bar"><div class="search">Buscar en Alejandro…</div><div class="sq">+</div></div>
+      <div class="grid">
+        <div class="card"><div class="h"><span>📄</span><span>⚙</span></div><b>Compras</b><small>Pan, leche…</small><span class="pend">2 pendientes</span></div>
+        <div class="card"><div class="h"><span>📄</span><span>⚙</span></div><b>Turno médico</b><small>Llevar estudios</small><small>Nota</small></div>
+        <div class="card"><div class="h"><span>📄</span><span>⚙</span></div><b>Regalo</b><small>Ideas…</small><small>Nota</small></div>
+      </div>
+      <div class="note">Afuera, en el inicio de Notas, sigue igual: carpetas y notas sueltas.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <h2>2 · Borrar una nota</h2>
+    <p>Engranaje → «Borrar nota» → «¿Seguro? Tocá otra vez». Abajo aparece Deshacer por 5 segundos.</p>
+    <div class="phone">
+      <div class="top"><span>←</span><span style="color:var(--verde)">📁</span><span class="sp">Alejandro</span></div>
+      <div class="bar"><div class="search">Buscar en Alejandro…</div><div class="sq">+</div></div>
+      <div class="grid">
+        <div class="card"><div class="h"><span>📄</span><span>⚙</span></div><b>Compras</b><small>Pan, leche…</small><span class="pend">2 pendientes</span></div>
+        <div class="card"><div class="h"><span>📄</span><span>⚙</span></div><b>Regalo</b><small>Ideas…</small><small>Nota</small></div>
+      </div>
+      <div class="snack"><span>Borrada: Turno médico</span><a href="#">DESHACER</a></div>
+    </div>
+  </div>
+
+  <div class="step">
+    <h2>3 · Borrar una carpeta con cosas</h2>
+    <p>Dos toques como siempre y una tercera confirmación que avisa cuántas notas tiene. Después también hay Deshacer.</p>
+    <div class="phone">
+      <div class="top"><span>☰</span><span class="sp">ALERTA YA</span></div>
+      <div class="grid" style="padding-top:12px">
+        <div class="card folder"><div class="h"><span>📁</span><span>⚙</span></div><b>Alejandro</b><small>3 notas</small></div>
+        <div class="card folder"><div class="h"><span>📁</span><span>⚙</span></div><b>Casa</b><small>Vacía</small></div>
+      </div>
+      <div class="shade"></div>
+      <div class="dialog">
+        <div class="warn">⚠</div>
+        <b>¿Borrar «Alejandro»?</b>
+        <span>Mirá que adentro tenés 3 notas. Se borran con la carpeta.</span>
+        <div class="btns"><span class="btn">Cancelar</span><span class="btn fill">Borrar todo</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <h2>4 · Tacho adentro de la nota</h2>
+    <p>Al tocar el tacho se despliegan dos opciones. «Borrar solo las tildadas» saca las ya hechas y deja Deshacer.</p>
+    <div class="phone">
+      <div class="top"><span>←</span><span class="sp">Compras</span><span class="ic">💡</span><span class="ic">A-Z</span><span class="ic">🗑</span></div>
+      <div class="lines">
+        <div class="ln"><span class="cb"></span><span>Pan</span></div>
+        <div class="ln"><span class="cb"></span><span>Queso</span></div>
+        <div class="ln done"><span class="cb x">✓</span><span>Leche</span></div>
+        <div class="ln done"><span class="cb x">✓</span><span>Yerba</span></div>
+      </div>
+      <div class="shade"></div>
+      <div class="sheet">
+        <div class="t">¿Qué querés borrar?</div>
+        <div class="opt"><span style="color:var(--blue)">☰✕</span>Borrar solo las tildadas (2)</div>
+        <div class="opt"><span style="color:var(--red)">🗑</span>Borrar la nota entera</div>
+        <div class="note">«Borrar la nota entera» pide un segundo toque: se pone roja y dice «¿Seguro? Tocá otra vez».</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <h2>5 · En Tareas, igual</h2>
+    <p>Borrar una tarea (dos toques) o una carpeta también deja Deshacer. Una carpeta con tareas pide la tercera confirmación.</p>
+    <div class="phone">
+      <div class="top"><span>←</span><span style="color:var(--verde)">📁</span><span class="sp">Casa</span><span>⚙</span><span class="ic on">🗑</span></div>
+      <div class="lines">
+        <div class="note" style="padding:0">PARA HACER (2)</div>
+        <div class="ln"><span class="cb"></span><span>1. Pintar la reja</span></div>
+        <div class="ln"><span class="cb"></span><span>2. Barrer el patio</span></div>
+      </div>
+      <div class="shade"></div>
+      <div class="dialog">
+        <div class="warn">⚠</div>
+        <b>¿Borrar «Casa»?</b>
+        <span>Mirá que adentro tenés 2 tareas. Se borran con la carpeta.</span>
+        <div class="btns"><span class="btn">Cancelar</span><span class="btn fill">Borrar todo</span></div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -87,12 +87,46 @@ class _TasksScreenState extends State<TasksScreen> {
     await _s.saveTasks();
   }
 
-  Future<void> _deleteFolder(TaskFolder f) async {
-    final rems = await _s.deleteTaskFolder(f);
-    for (final id in rems) {
-      await _quiet(() => _repo.delete(id));
+  /// Borra la carpeta con "Deshacer" 5 segundos. Si tiene tareas, antes
+  /// pide una confirmación más. Los recordatorios de sus tareas se borran
+  /// recién cuando se va el cartel sin deshacer.
+  Future<bool> _deleteFolder(TaskFolder f) async {
+    final count = _s.tasks.where((t) => t.folder == f.id).length;
+    if (count > 0) {
+      final ok = await confirmFolderDelete(
+        context,
+        name: f.name,
+        count: count,
+        one: 'tarea',
+        many: 'tareas',
+      );
+      if (!ok || !mounted) return false;
     }
-    if (mounted) toast(context, 'Borrada: ${f.name}');
+    final at = _s.taskFolders.indexOf(f);
+    final gone = [
+      for (var i = 0; i < _s.tasks.length; i++)
+        if (_s.tasks[i].folder == f.id) (i, _s.tasks[i]),
+    ];
+    final rems = await _s.deleteTaskFolder(f);
+    if (!mounted) return true;
+    final repo = _repo;
+    undoToast(
+      context,
+      'Borrada la carpeta: ${f.name}',
+      onUndo: () {
+        _s.taskFolders.insert(at.clamp(0, _s.taskFolders.length), f);
+        for (final (i, t) in gone) {
+          _s.tasks.insert(i.clamp(0, _s.tasks.length), t);
+        }
+        _s.saveTasks();
+      },
+      onGone: () async {
+        for (final id in rems) {
+          await _quiet(() => repo.delete(id));
+        }
+      },
+    );
+    return true;
   }
 
   Future<void> _gearFolder(TaskFolder f) async {
@@ -139,14 +173,25 @@ class _TasksScreenState extends State<TasksScreen> {
       toast(context, 'Tocá otra vez el tacho para borrarla');
       return;
     }
+    final at = _s.tasks.indexOf(t);
     _s.tasks.remove(t);
     setState(() {
       _open = null;
       _sureDelete = false;
     });
     await _s.saveTasks();
+    if (!mounted) return;
     final id = t.reminderId;
-    if (id != null) await _quiet(() => _repo.delete(id));
+    final repo = _repo;
+    undoToast(
+      context,
+      'Borrada: ${t.name}',
+      onUndo: () {
+        _s.tasks.insert(at.clamp(0, _s.tasks.length), t);
+        _s.saveTasks();
+      },
+      onGone: id == null ? null : () => _quiet(() => repo.delete(id)),
+    );
   }
 
   Future<void> _saveEdit(TaskItem t) async {
@@ -825,8 +870,10 @@ class _TasksScreenState extends State<TasksScreen> {
                             );
                             return;
                           }
-                          _enter(null);
-                          _deleteFolder(folder);
+                          setState(() => _sureFolder = false);
+                          _deleteFolder(folder).then((done) {
+                            if (done && mounted) _enter(null);
+                          });
                         },
                       ),
                     ],

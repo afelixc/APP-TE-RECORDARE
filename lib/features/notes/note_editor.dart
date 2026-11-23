@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/sheets.dart';
+
 import '../../core/settings.dart';
 import 'box_widgets.dart';
 import 'boxes.dart';
@@ -89,7 +91,6 @@ class _NoteEditorState extends State<NoteEditor> {
   /// El último renglón donde estuvo el cursor (a ese se le aplica la barra).
   int _current = -1;
   _Pop? _pop;
-  bool _sureDelete = false;
   bool _fixing = false;
 
   /// Pantalla siempre prendida mientras se tilda (se suelta al salir).
@@ -361,14 +362,145 @@ class _NoteEditorState extends State<NoteEditor> {
     if (_empty) widget.settings.deleteNoteBox(widget.note);
   }
 
-  void _delete() {
-    if (!_sureDelete) {
-      setState(() => _sureDelete = true);
-      toast(context, 'Tocá otra vez para borrar la nota');
+  /// El tacho despliega dos opciones: borrar solo las tildadas o la nota
+  /// entera (esta con dos toques). Las dos dejan "Deshacer" 5 segundos.
+  Future<void> _delete() async {
+    final done = _lines.where((l) => l.style.check == true).length;
+    final what = await showAppSheet<String>(
+      context: context,
+      builder: (context) {
+        var sure = false;
+        return StatefulBuilder(
+          builder: (context, setSheet) => Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
+                    '¿Qué querés borrar?',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                ListTile(
+                  key: const Key('note-delete-checked'),
+                  enabled: done > 0,
+                  leading: const Icon(Icons.playlist_remove, color: appBlue),
+                  title: Text(
+                    done == 0
+                        ? 'Borrar solo las tildadas (no hay)'
+                        : 'Borrar solo las tildadas ($done)',
+                  ),
+                  onTap: () => Navigator.pop(context, 'tildadas'),
+                ),
+                ListTile(
+                  key: const Key('note-delete-all'),
+                  tileColor: sure ? pendingRed : null,
+                  textColor: sure ? Colors.white : null,
+                  iconColor: sure ? Colors.white : pendingRed,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  leading: const Icon(Icons.delete),
+                  title: Text(
+                    sure ? '¿Seguro? Tocá otra vez' : 'Borrar la nota entera',
+                  ),
+                  onTap: () {
+                    if (!sure) {
+                      setSheet(() => sure = true);
+                      return;
+                    }
+                    Navigator.pop(context, 'nota');
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (!mounted || what == null) return;
+    if (what == 'tildadas') {
+      _deleteChecked();
       return;
     }
-    widget.settings.deleteNoteBox(widget.note);
+    final s = widget.settings;
+    final note = widget.note;
+    final messenger = ScaffoldMessenger.of(context);
+    _save();
+    s.deleteNoteBox(note);
     Navigator.pop(context);
+    final name = note.name.isEmpty ? 'Sin título' : note.name;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Borrada: $name',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        duration: const Duration(seconds: 5),
+        persist: false,
+        action: SnackBarAction(
+          label: 'Deshacer',
+          onPressed: () {
+            if (!s.notes.contains(note)) s.notes.add(note);
+            s.saveNoteBoxes();
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Saca los renglones tildados (se pueden volver a poner con Deshacer).
+  void _deleteChecked() {
+    final gone = [
+      for (var i = 0; i < _lines.length; i++)
+        if (_lines[i].style.check == true) (i, _lines[i]),
+    ];
+    if (gone.isEmpty) return;
+    final cur = _current >= 0 && _current < _lines.length
+        ? _lines[_current]
+        : null;
+    setState(() {
+      for (final (_, l) in gone) {
+        _lines.remove(l);
+      }
+      _current = cur == null ? -1 : _lines.indexOf(cur);
+    });
+    _save();
+    undoToast(
+      context,
+      gone.length == 1
+          ? 'Borrada 1 tildada'
+          : 'Borradas ${gone.length} tildadas',
+      onUndo: () {
+        if (!mounted) {
+          // Ya salió de la nota: se vuelven a poner en lo guardado.
+          final lines = [...widget.note.lines];
+          for (final (i, l) in gone) {
+            lines.insert(i.clamp(0, lines.length), l.value);
+            l.dispose();
+          }
+          widget.note.lines = lines;
+          widget.settings.saveNoteBoxes();
+          return;
+        }
+        setState(() {
+          for (final (i, l) in gone) {
+            _lines.insert(i.clamp(0, _lines.length), l);
+          }
+        });
+        _save();
+      },
+      onGone: () {
+        for (final (_, l) in gone) {
+          l.dispose();
+        }
+      },
+    );
   }
 
   TextStyle _styleOf(NoteLine s, ColorScheme scheme) {
@@ -674,9 +806,7 @@ class _NoteEditorState extends State<NoteEditor> {
                             )
                           : null,
                       icon: Icon(
-                        _awake
-                            ? Icons.lightbulb
-                            : Icons.lightbulb_outline,
+                        _awake ? Icons.lightbulb : Icons.lightbulb_outline,
                       ),
                       onPressed: _toggleAwake,
                     ),
@@ -688,13 +818,7 @@ class _NoteEditorState extends State<NoteEditor> {
                     ),
                     IconButton(
                       key: const Key('note-delete'),
-                      tooltip: 'Borrar nota',
-                      style: _sureDelete
-                          ? IconButton.styleFrom(
-                              backgroundColor: pendingRed,
-                              foregroundColor: Colors.white,
-                            )
-                          : null,
+                      tooltip: 'Borrar',
                       icon: const Icon(Icons.delete),
                       onPressed: _delete,
                     ),
