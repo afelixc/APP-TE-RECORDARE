@@ -6,6 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:recordame/core/settings.dart';
 import 'package:recordame/data/memory_reminder_repository.dart';
 import 'package:recordame/features/notebook/notes.dart';
+import 'package:recordame/features/notes/box_widgets.dart';
 import 'package:recordame/features/notes/boxes.dart';
 import 'package:recordame/features/notes/note_editor.dart';
 import 'package:recordame/features/notes/notes_screen.dart';
@@ -425,6 +426,49 @@ void main() {
     await tester.tap(find.text('Deshacer'));
     await tester.pumpAndSettle();
     expect(s.notes, [n]);
+  });
+
+  testWidgets('cartel de borrar: con letra grande, cada botón en un renglón', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360 * 3, 780 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: const TextScaler.linear(1.6)),
+          child: child!,
+        ),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => confirmDelete(
+                context,
+                title: '¿Borrar «Nota 2»?',
+                text: 'Se borra la nota entera.',
+                ok: 'Borrar todo',
+              ),
+              child: const Text('abrir'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
+    for (final t in ['Cancelar', 'Borrar todo']) {
+      final box = tester.renderObject<RenderParagraph>(find.text(t));
+      expect(box.didExceedMaxLines, false, reason: t);
+      // Un solo renglón: el alto es el de una línea de su letra.
+      expect(
+        box.size.height,
+        lessThan(box.text.style!.fontSize! * 1.6 * 1.6),
+        reason: t,
+      );
+    }
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Tareas: borrar carpeta con tareas pide 3 pasos y se deshace', (

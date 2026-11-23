@@ -120,16 +120,25 @@ class _NotesScreenState extends State<NotesScreen> {
   Future<void> _delete(NoteBox n) async {
     final inside = notesInside(_s.notes, n.id);
     final notes = inside.where((x) => !x.folder).length;
-    if (n.folder && notes > 0) {
-      final ok = await confirmFolderDelete(
-        context,
-        name: n.name,
-        count: notes,
-        one: 'nota',
-        many: 'notas',
-      );
-      if (!ok || !mounted) return;
-    }
+    // Siempre un cartel en el medio (pedido del usuario): las carpetas
+    // dicen cuántas notas tienen; las notas, como en el editor.
+    final ok = n.folder
+        ? await confirmFolderDelete(
+            context,
+            name: n.name,
+            count: notes,
+            one: 'nota',
+            many: 'notas',
+          )
+        : await confirmDelete(
+            context,
+            title: n.name.trim().isEmpty
+                ? '¿Borrar esta nota?'
+                : '¿Borrar «${n.name.trim()}»?',
+            text: 'Se borra la nota entera, con todo lo que tiene adentro.',
+            ok: 'Aceptar',
+          );
+    if (!ok || !mounted) return;
     final gone = [n, ...inside];
     await _s.deleteNoteBox(n);
     if (!mounted) return;

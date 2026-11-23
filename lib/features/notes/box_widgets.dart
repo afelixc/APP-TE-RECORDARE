@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/fit.dart';
 import '../../core/sheets.dart';
 import 'boxes.dart';
 
@@ -1010,9 +1011,10 @@ Future<bool> confirmFolderDelete(
 }) => confirmDelete(
   context,
   title: '¿Borrar «$name»?',
-  text:
-      'Mirá que adentro tenés ${count == 1 ? '1 $one' : '$count $many'}. '
-      'Se borra${count == 1 ? '' : 'n'} con la carpeta.',
+  text: count == 0
+      ? 'La carpeta está vacía.'
+      : 'Mirá que adentro tenés ${count == 1 ? '1 $one' : '$count $many'}. '
+            'Se borra${count == 1 ? '' : 'n'} con la carpeta.',
   ok: 'Borrar todo',
 );
 
@@ -1039,33 +1041,66 @@ Future<bool> confirmDelete(
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 16),
       ),
-      // Los dos del mismo tamaño, con el texto en el medio (pedido).
+      // Los dos del mismo tamaño, uno al lado del otro, con la palabra
+      // entera en un renglón y en el medio (pedido del usuario: con letra
+      // grande "Cancelar" no se puede partir). Si no entra, se achica la
+      // letra de los dos por igual.
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
       actions: [
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                key: const Key('folder-delete-cancel'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(46),
-                ),
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancelar', textAlign: TextAlign.center),
+        Builder(
+          builder: (context) {
+            const pad = 8.0;
+            // Ancho del cartel: la pantalla menos sus márgenes (40 de cada
+            // lado, máximo 560) y los 16 de cada lado de los botones.
+            final screen = MediaQuery.sizeOf(context).width;
+            final inner = (screen - 80).clamp(200.0, 560.0) - 32;
+            final w = (inner - 10) / 2 - pad * 2 - 6;
+            final size = sameFontSize(context, ['Cancelar', ok], w);
+            Widget label(String t, Color? color) => Text(
+              t,
+              maxLines: 1,
+              softWrap: false,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: size,
+                fontWeight: FontWeight.w600,
+                color: color,
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: FilledButton(
-                key: const Key('folder-delete-ok'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: pendingRed,
-                  minimumSize: const Size.fromHeight(46),
+            );
+            final shape = RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            );
+            return Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    key: const Key('folder-delete-cancel'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      padding: const EdgeInsets.symmetric(horizontal: pad),
+                      shape: shape,
+                    ),
+                    onPressed: () => Navigator.pop(context, false),
+                    child: label('Cancelar', null),
+                  ),
                 ),
-                onPressed: () => Navigator.pop(context, true),
-                child: Text(ok, textAlign: TextAlign.center),
-              ),
-            ),
-          ],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    key: const Key('folder-delete-ok'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: pendingRed,
+                      minimumSize: const Size.fromHeight(48),
+                      padding: const EdgeInsets.symmetric(horizontal: pad),
+                      shape: shape,
+                    ),
+                    onPressed: () => Navigator.pop(context, true),
+                    child: label(ok, Colors.white),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ],
     ),

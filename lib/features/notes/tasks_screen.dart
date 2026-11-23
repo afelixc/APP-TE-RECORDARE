@@ -92,16 +92,15 @@ class _TasksScreenState extends State<TasksScreen> {
   /// recién cuando se va el cartel sin deshacer.
   Future<bool> _deleteFolder(TaskFolder f) async {
     final count = _s.tasks.where((t) => t.folder == f.id).length;
-    if (count > 0) {
-      final ok = await confirmFolderDelete(
-        context,
-        name: f.name,
-        count: count,
-        one: 'tarea',
-        many: 'tareas',
-      );
-      if (!ok || !mounted) return false;
-    }
+    // Siempre un cartel en el medio, aunque esté vacía (pedido del usuario).
+    final ok = await confirmFolderDelete(
+      context,
+      name: f.name,
+      count: count,
+      one: 'tarea',
+      many: 'tareas',
+    );
+    if (!ok || !mounted) return false;
     final at = _s.taskFolders.indexOf(f);
     final gone = [
       for (var i = 0; i < _s.tasks.length; i++)
