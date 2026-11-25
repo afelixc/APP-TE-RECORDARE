@@ -49,4 +49,44 @@ void main() {
     expect(find.byKey(const Key('missed-banner')), findsNothing);
     expect(find.byKey(Key('missed-done-$juan')), findsNothing);
   });
+
+  testWidgets('salir de la app y volver arranca en Mensaje, salvo en '
+      'Configuración', (tester) async {
+    final settings = AppSettings(MemorySettingsStore(), MemoryKeyStore());
+    await tester.pumpWidget(
+      RecordameApp(reminders: MemoryReminderRepository(), settings: settings),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('manual-entry')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('tab-Listado')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('pick-many')), findsOneWidget);
+    _leaveAndCome(tester);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('pick-many')), findsNothing);
+
+    // En Configuración se queda donde estaba.
+    await tester.tap(find.byKey(const Key('top-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Configuración').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Modo de uso'), findsWidgets);
+    _leaveAndCome(tester);
+    await tester.pumpAndSettle();
+    expect(find.text('Modo de uso'), findsWidgets);
+  });
+}
+
+void _leaveAndCome(WidgetTester tester) {
+  for (final st in [
+    AppLifecycleState.inactive,
+    AppLifecycleState.hidden,
+    AppLifecycleState.paused,
+    AppLifecycleState.hidden,
+    AppLifecycleState.inactive,
+    AppLifecycleState.resumed,
+  ]) {
+    tester.binding.handleAppLifecycleStateChanged(st);
+  }
 }

@@ -142,9 +142,34 @@ class _HomeShellState extends State<HomeShell> {
 
   StreamSubscription<int>? _openedSub;
 
+  /// Salir de la app y volver arranca siempre en Mensaje, con todo lo de
+  /// encima cerrado (pedido del usuario: para mandar un mensaje rápido).
+  /// No si se estaba en Configuración (de ahí se abren pantallas de Android)
+  /// ni si se acaba de tocar una notificación (se ven sus opciones).
+  late final AppLifecycleListener _lifecycle;
+  bool _wentAway = false;
+  DateTime? _openedAt;
+
+  void _backHome() {
+    if (!_wentAway || !mounted) return;
+    _wentAway = false;
+    if (settingsOpen > 0) return;
+    final opened = _openedAt;
+    if (opened != null &&
+        DateTime.now().difference(opened) < const Duration(seconds: 3)) {
+      return;
+    }
+    Navigator.of(context).popUntil((r) => r.isFirst);
+    if (_index != 0) _select(0);
+  }
+
   @override
   void initState() {
     super.initState();
+    _lifecycle = AppLifecycleListener(
+      onHide: () => _wentAway = true,
+      onShow: _backHome,
+    );
     // Al tocar una notificación se muestran sus opciones (Hecho / Posponer).
     _openedSub = widget.openedReminders.listen(_showReminder);
     final launchId = widget.launchReminderId;
@@ -157,11 +182,13 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   void dispose() {
+    _lifecycle.dispose();
     _openedSub?.cancel();
     super.dispose();
   }
 
   void _showReminder(int id) {
+    _openedAt = DateTime.now();
     if (mounted) showReminderActionsSheet(context, id);
   }
 

@@ -5,14 +5,26 @@ import '../settings/settings_screen.dart';
 import 'home_shell.dart';
 
 /// Abre Configuración (está en el menú ⋮ de arriba).
-Future<void> openSettings(BuildContext context) => Navigator.of(context).push(
-  MaterialPageRoute<void>(
-    builder: (_) => Scaffold(
-      appBar: AppBar(title: const Text('Configuración')),
-      body: const SettingsScreen(),
-    ),
-  ),
-);
+Future<void> openSettings(BuildContext context) async {
+  settingsOpen++;
+  try {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: const Text('Configuración')),
+          body: const SettingsScreen(),
+        ),
+      ),
+    );
+  } finally {
+    settingsOpen--;
+  }
+}
+
+/// Cuántas Configuraciones hay abiertas. Desde ahí se abren pantallas de
+/// Android (elegir sonido, carpeta de la copia, ajustes de batería…): al
+/// volver de esas no hay que llevar al usuario a Mensaje.
+int settingsOpen = 0;
 
 /// La barra azul de arriba: el micrófono naranja a la izquierda (menos en
 /// Mensaje, que tiene el suyo grande), ALERTA YA en el medio y el menú ⋮
