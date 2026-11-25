@@ -6,6 +6,7 @@ import '../../core/settings.dart';
 import '../home/top_bar.dart';
 import '../reminders/reminder_form.dart';
 import 'ai_chat.dart';
+import 'missed_banner.dart';
 
 /// Pestaña Mensaje. Con la IA lista muestra el chat; si no, el formulario
 /// para cargar a mano (modo gratis).
@@ -89,6 +90,7 @@ class _ManualEntryState extends State<_ManualEntry> {
       controller: _scroll,
       padding: const EdgeInsets.all(16),
       children: [
+        const MissedBanner(padding: EdgeInsets.only(bottom: 10)),
         if (_lastSaved != null) ChatBubble(text: _lastSaved!),
         const SizedBox(height: 8),
         Card(

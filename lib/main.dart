@@ -16,6 +16,7 @@ import 'data/memory_reminder_repository.dart';
 import 'data/reminder.dart';
 import 'data/scheduling_reminder_repository.dart';
 import 'features/ai/ai_providers.dart';
+import 'features/ai/demo_provider.dart';
 import 'features/backup/backup_service.dart';
 import 'features/calendar_sync/calendar_sync.dart';
 import 'features/calendar_sync/device_calendar.dart';
@@ -35,9 +36,13 @@ Future<void> main() async {
     final settings = AppSettings(MemorySettingsStore(), MemoryKeyStore());
     await settings.load(providerIds);
     _sampleNotesAndTasks(settings);
+    // Mensaje con una IA de prueba (escribir algo lo carga para dentro de 1 h).
+    await settings.saveKey('claude', 'prueba');
+    await settings.setMode(UsageMode.ai);
     runApp(
       RecordameApp(
         settings: settings,
+        aiProviderOverride: const DemoAiProvider(),
         reminders: SchedulingReminderRepository(
           MemoryReminderRepository(_sampleReminders()),
           const NoopReminderScheduler(),
@@ -143,8 +148,13 @@ List<Reminder> _sampleReminders() {
   DateTime at(int days, int hour, [int minute = 0]) =>
       DateTime(now.year, now.month, now.day + days, hour, minute);
   return [
-    Reminder(title: 'Pagar la luz', dueAt: at(0, 18)),
-    Reminder(title: 'Turno con el dentista', dueAt: at(4, 16, 30)),
+    // Vencidos sin responder (el cartelito rojo de Mensaje).
+    Reminder(
+      title: 'Llamar a Juan por el presupuesto',
+      dueAt: now.subtract(const Duration(hours: 2)),
+    ),
+    Reminder(title: 'Pagar la luz', dueAt: at(-1, 18)),
+    Reminder(title: 'Sacar turno con el dentista', dueAt: at(1, 16, 30)),
     Reminder(title: 'Lavar el auto', dueAt: at(7, 9)),
     Reminder(title: 'Cumpleaños de mamá', dueAt: at(13, 10)),
     Reminder(title: 'Llamar al contador', dueAt: at(-2, 11), done: true),

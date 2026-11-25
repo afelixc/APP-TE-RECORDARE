@@ -15,6 +15,7 @@ import '../reminders/priority_chooser.dart';
 import '../reminders/reminder_editor.dart';
 import 'chat_screen.dart';
 import 'dictation.dart';
+import 'missed_banner.dart';
 import 'talking_panel.dart';
 
 enum _Status { thinking, saved, question, error }
@@ -382,6 +383,10 @@ class _AiChatState extends State<AiChat> {
             ],
           ),
         ),
+        // Lo que pasó sin responder. Mientras se ve lo recién cargado se
+        // esconde, para que entre la tarjeta entera; vuelve al cerrarla.
+        if (!_showLast)
+          const MissedBanner(padding: EdgeInsets.fromLTRB(14, 8, 14, 0)),
         Expanded(
           child: _showLast
               ? Column(

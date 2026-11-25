@@ -751,7 +751,9 @@ class NotificationService implements ReminderScheduler {
 
   @override
   Future<void> rescheduleAll(List<Reminder> reminders) async {
-    await _plugin.cancelAll();
+    // Solo los programados: los que ya llegaron y nadie respondió quedan a la
+    // vista (antes abrir la app los borraba y se pasaban sin ver).
+    await _plugin.cancelAllPendingNotifications();
     for (final r in reminders) {
       if (r.id != null) await _schedule(r);
     }
