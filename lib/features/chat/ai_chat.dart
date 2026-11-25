@@ -82,9 +82,31 @@ class _AiChatState extends State<AiChat> {
   /// Los que ya se guardaron de ese pedido, para no repetirlos al completar.
   final _alreadySaved = <String>{};
 
+  /// Salir de la app (al inicio del teléfono o a otra) y volver deja Mensaje
+  /// listo para uno nuevo, sin la tarjeta del último (pedido del usuario: el
+  /// último está en el botón de arriba).
+  late final AppLifecycleListener _lifecycle;
+  bool _wentAway = false;
+
+  void _freshStart() {
+    if (!_wentAway || !mounted) return;
+    _wentAway = false;
+    if (_thinking || _dictation.active) return;
+    _previousRequest = null;
+    _alreadySaved.clear();
+    setState(() {
+      _last = null;
+      _showLast = false;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    _lifecycle = AppLifecycleListener(
+      onHide: () => _wentAway = true,
+      onShow: _freshStart,
+    );
     _dictation.addListener(_onDictation);
     if (talkWhenChatOpens) {
       talkWhenChatOpens = false;
@@ -96,6 +118,7 @@ class _AiChatState extends State<AiChat> {
 
   @override
   void dispose() {
+    _lifecycle.dispose();
     _dictation.removeListener(_onDictation);
     _dictation.dispose();
     _input.dispose();

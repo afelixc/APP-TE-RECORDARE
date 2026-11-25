@@ -287,6 +287,25 @@ void main() {
     await tester.pumpAndSettle();
     expect((await repo.watchAll().first).single.title, 'Lavar el auto');
 
+    // Salir de la app y volver: Mensaje queda listo para uno nuevo.
+    for (final st in [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ]) {
+      tester.binding.handleAppLifecycleStateChanged(st);
+    }
+    await tester.pumpAndSettle();
+    expect(find.text('Volver a activarlo'), findsNothing);
+    expect(find.byKey(const Key('big-mic')), findsOneWidget);
+    // El último sigue en el botón de arriba.
+    await tester.tap(find.byKey(const Key('show-last')));
+    await tester.pumpAndSettle();
+    expect(find.text('Lavar el auto'), findsWidgets);
+
     // En Configuración → "Chat completo" está toda la conversación.
     await tester.tap(find.byKey(const Key('top-menu')));
     await tester.pumpAndSettle();
