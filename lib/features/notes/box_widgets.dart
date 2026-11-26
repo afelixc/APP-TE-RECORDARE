@@ -74,8 +74,11 @@ class BoxStatus extends StatelessWidget {
   }
 }
 
-/// Recuadro de una carpeta o una nota: borde, dibujo y nombre del color
-/// elegido, fondo aparte y engranaje en el rincón.
+/// Recuadro de una carpeta o una nota, chico (pedido del usuario): el
+/// dibujo, el nombre en un renglón y el engranaje arriba; abajo lo que falta
+/// ("2 pendientes") o "Nota" / "Vacía". Las carpetas llevan una pestañita
+/// arriba y el fondo de su color; las notas, una franja gruesa a la
+/// izquierda, como una hoja: así no se confunden.
 class BoxCard extends StatelessWidget {
   const BoxCard({
     super.key,
@@ -86,7 +89,7 @@ class BoxCard extends StatelessWidget {
     required this.status,
     required this.onTap,
     required this.onGear,
-    this.preview,
+    this.isFolder = false,
     this.where,
     this.subfolders = 0,
     this.gearKey,
@@ -96,7 +99,7 @@ class BoxCard extends StatelessWidget {
   final String color;
   final String background;
   final String title;
-  final String? preview;
+  final bool isFolder;
 
   /// En la búsqueda: "en Casa".
   final String? where;
@@ -112,7 +115,7 @@ class BoxCard extends StatelessWidget {
     final night = _night(context);
     final border = boxBorder(color);
     final name = night ? border : boxName(color);
-    final fill = night
+    final base = night
         ? (background == 'blanco'
               ? scheme.surfaceContainer
               : Color.alphaBlend(
@@ -120,119 +123,125 @@ class BoxCard extends StatelessWidget {
                   scheme.surfaceContainer,
                 ))
         : boxFill(background);
-    return Material(
+    // La carpeta con un toque de su color encima del fondo elegido.
+    final fill = isFolder
+        ? Color.alphaBlend(border.withValues(alpha: night ? 0.16 : 0.10), base)
+        : base;
+    final height = boxCardHeight(context);
+    final card = Material(
       color: fill,
       shape: RoundedRectangleBorder(
         side: BorderSide(color: border, width: 2),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(isFolder ? 4 : 12),
+          topRight: const Radius.circular(12),
+          bottomLeft: const Radius.circular(12),
+          bottomRight: const Radius.circular(12),
+        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: SizedBox(
-          // Todos del mismo alto (pedido del usuario): lo largo se corta con
-          // "…" y se lee entero al entrar.
-          height: boxCardHeight(context),
-          child: Stack(
+          height: height,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      height: 26,
-                      child: Row(
+              // La nota: franja gruesa a la izquierda.
+              if (!isFolder) Container(width: 6, color: border),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(isFolder ? 10 : 8, 6, 0, 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
                         children: [
-                          Icon(icon, size: 26, color: border),
-                          if (subfolders > 0) ...[
-                            const SizedBox(width: 6),
-                            Icon(
-                              Icons.folder_copy_outlined,
-                              size: 18,
-                              color: border,
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              '$subfolders',
+                          Icon(icon, size: 20, color: border),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: border,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
+                                color: name,
+                                fontWeight: isFolder
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                fontSize: BoxNameSize.of(context),
+                                height: 1.2,
                               ),
                             ),
-                          ],
+                          ),
+                          InkWell(
+                            key: gearKey,
+                            onTap: onGear,
+                            customBorder: const CircleBorder(),
+                            child: Tooltip(
+                              message: 'Ajustes',
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
+                                child: Icon(
+                                  Icons.settings,
+                                  size: 20,
+                                  color: border,
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    // El nombre en hasta 2 renglones con las palabras
-                    // enteras, con la misma letra en todos los recuadros.
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: name,
-                        fontWeight: FontWeight.w500,
-                        fontSize: BoxNameSize.of(context),
-                        height: 1.2,
-                      ),
-                    ),
-                    Expanded(
-                      child: ClipRect(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (where == null &&
-                                preview != null &&
-                                preview!.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                preview!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: scheme.onSurface,
-                                ),
-                              ),
-                            ],
-                            if (where != null)
-                              Text(
-                                where!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                          ],
+                      // Lo que falta, siempre abajo y alineado.
+                      SizedBox(
+                        height: 20,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (subfolders > 0) ...[
+                                  Icon(
+                                    Icons.folder_copy_outlined,
+                                    size: 15,
+                                    color: border,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '$subfolders  ',
+                                    style: TextStyle(
+                                      color: border,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                                status,
+                                if (where != null) ...[
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    where!,
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                    // Lo que falta, siempre abajo de todo y alineado.
-                    SizedBox(
-                      height: 22,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: status,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                top: 0,
-                right: 0,
-                child: IconButton(
-                  key: gearKey,
-                  tooltip: 'Ajustes',
-                  visualDensity: VisualDensity.compact,
-                  icon: Icon(Icons.settings, color: border),
-                  onPressed: onGear,
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -240,24 +249,42 @@ class BoxCard extends StatelessWidget {
         ),
       ),
     );
+    if (!isFolder) {
+      return Padding(padding: const EdgeInsets.only(top: _tab), child: card);
+    }
+    // La carpeta: pestañita arriba a la izquierda, como una carpeta de verdad.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 44,
+          height: _tab,
+          margin: const EdgeInsets.only(left: 0),
+          decoration: BoxDecoration(
+            color: border,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(6),
+              topRight: Radius.circular(6),
+            ),
+          ),
+        ),
+        card,
+      ],
+    );
   }
 }
 
-/// Alto de cada recuadro: el justo para la carpetita, dos renglones de
-/// nombre (y uno de texto en las notas) y lo que falta, sin espacio de más.
-double boxCardHeight(BuildContext context) =>
-    context.dependOnInheritedWidgetOfExactType<BoxNameSize>()?.height ?? 130;
+const double _tab = 6;
 
-double _cardHeight(BuildContext context, double nameSize, bool extraLine) {
+/// Alto de cada recuadro (sin la pestañita): un renglón de nombre y uno de
+/// lo que falta, sin espacio de más.
+double boxCardHeight(BuildContext context) =>
+    context.dependOnInheritedWidgetOfExactType<BoxNameSize>()?.height ?? 64;
+
+double _cardHeight(BuildContext context, double nameSize) {
   final scale = MediaQuery.textScalerOf(context).scale(1);
-  return 10 +
-      26 +
-      4 +
-      2 * nameSize * 1.2 * scale +
-      (extraLine ? 4 + 12.5 * 1.4 * scale : 0) +
-      4 +
-      22 +
-      10;
+  final line = nameSize * 1.2 * scale;
+  return 6 + (line > 24 ? line : 24) + 4 + 20 + 6;
 }
 
 /// La letra del nombre y el alto de los recuadros: lo mismo en todos.
@@ -273,43 +300,34 @@ class BoxNameSize extends InheritedWidget {
   final double height;
 
   static double of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<BoxNameSize>()?.size ?? 17;
+      context.dependOnInheritedWidgetOfExactType<BoxNameSize>()?.size ?? 16;
 
   @override
   bool updateShouldNotify(BoxNameSize old) =>
       old.size != size || old.height != height;
 }
 
-/// La letra más grande (hasta 19, la misma en todos los recuadros) en la
-/// que cada nombre entra entero en hasta 2 renglones de [width], sin partir
-/// ninguna palabra. Si un nombre no entra ni con 12, no achica a los demás:
-/// se corta con "…" y se lee entero al entrar.
+/// La letra más grande (hasta 16, la misma en todos los recuadros) en la
+/// que cada nombre entra entero en un renglón de [width]. Si un nombre no
+/// entra ni con 13, no achica a los demás: se corta con "…" y se lee entero
+/// al entrar.
 double boxNameSize(BuildContext context, Iterable<String> names, double width) {
-  const top = 19.0;
-  const bottom = 12.0;
+  const top = 16.0;
+  const bottom = 13.0;
   final scaler = MediaQuery.textScalerOf(context);
   bool fits(String name, double size) {
-    final style = TextStyle(fontSize: size, fontWeight: FontWeight.w500);
-    // Ninguna palabra más ancha que el recuadro (no se parte).
-    for (final w in name.split(RegExp(r'\s+'))) {
-      final p = TextPainter(
-        text: TextSpan(text: w, style: style),
-        textDirection: TextDirection.ltr,
-        textScaler: scaler,
-        maxLines: 1,
-      )..layout();
-      final too = p.width > width;
-      p.dispose();
-      if (too) return false;
-    }
     final p = TextPainter(
-      text: TextSpan(text: name, style: style.copyWith(height: 1.2)),
+      text: TextSpan(
+        text: name,
+        style: TextStyle(fontSize: size, fontWeight: FontWeight.w700),
+      ),
       textDirection: TextDirection.ltr,
       textScaler: scaler,
-    )..layout(maxWidth: width);
-    final lines = p.computeLineMetrics().length;
+      maxLines: 1,
+    )..layout();
+    final ok = p.width <= width;
     p.dispose();
-    return lines <= 2;
+    return ok;
   }
 
   var size = top;
@@ -330,23 +348,19 @@ class BoxGrid extends StatelessWidget {
     super.key,
     required this.children,
     required this.titles,
-    this.extraLine = false,
   });
 
   final List<Widget> children;
   final List<String> titles;
 
-  /// Algún recuadro lleva un renglón más (el comienzo de la nota).
-  final bool extraLine;
-
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
-      // Ancho del recuadro menos los márgenes de adentro.
-      final size = boxNameSize(context, titles, (box.maxWidth - 10) / 2 - 28);
+      // Ancho del recuadro menos el dibujo, el engranaje y los márgenes.
+      final size = boxNameSize(context, titles, (box.maxWidth - 10) / 2 - 72);
       return BoxNameSize(
         size: size,
-        height: _cardHeight(context, size, extraLine),
+        height: _cardHeight(context, size),
         child: _rows(),
       );
     },

@@ -199,7 +199,7 @@ void main() {
         dueAt: DateTime(now.year, now.month, now.day, 23, 30),
       ),
     ]);
-    await tester.tap(find.text('Almanaque'));
+    await tester.tap(find.text('Calend.'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('Turno médico'),
@@ -799,7 +799,7 @@ void main() {
   ) async {
     await pumpApp(tester);
     expect(find.byKey(const Key('top-mic')), findsNothing);
-    await tester.tap(find.text('Almanaque'));
+    await tester.tap(find.text('Calend.'));
     await tester.pumpAndSettle();
     expect(find.text('Nuevo'), findsNothing);
     expect(find.byKey(const Key('top-mic')), findsOneWidget);

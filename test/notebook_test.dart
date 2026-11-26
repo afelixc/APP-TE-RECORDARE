@@ -704,7 +704,7 @@ void main() {
     expect(s.tasks.first.name, 'Agente nuevo');
   });
 
-  testWidgets('Tareas: el nombre largo de la carpeta se ve entero', (
+  testWidgets('Tareas: recuadros chicos, nombre en un renglón, mismo alto', (
     tester,
   ) async {
     final s = AppSettings(MemorySettingsStore(), MemoryKeyStore());
@@ -718,10 +718,14 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    // El largo se corta con "…" en un renglón; el corto entra entero.
     final p = tester.renderObject<RenderParagraph>(find.text(long));
-    expect(p.didExceedMaxLines, isFalse);
+    expect(p.didExceedMaxLines, isTrue);
+    final g = tester.renderObject<RenderParagraph>(find.text('General'));
+    expect(g.didExceedMaxLines, isFalse);
     final a = tester.getSize(find.byKey(const Key('task-folder-$long')));
     final b = tester.getSize(find.byKey(const Key('task-folder-General')));
     expect(a.height, b.height);
+    expect(a.height, lessThan(90));
   });
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/fit.dart';
 import '../../core/app_scope.dart';
 import '../calendar/calendar_screen.dart';
 import '../chat/ai_chat.dart' show talkWhenChatOpens;
@@ -22,7 +23,15 @@ class AppTab {
     required this.selectedIcon,
     required this.builder,
     this.ownTopBar = false,
+    this.short,
   });
+
+  /// Lo que se lee debajo del dibujo, si es distinto del nombre
+  /// ("Calend." en vez de "Almanaque", así entra con la misma letra).
+  final String? short;
+
+  /// El texto de la barra de abajo.
+  String get shown => short ?? label;
 
   /// Arma su propia barra de arriba.
   final bool ownTopBar;
@@ -44,6 +53,7 @@ final List<AppTab> appTabs = [
   ),
   AppTab(
     label: 'Almanaque',
+    short: 'Calend.',
     icon: Icons.calendar_month_outlined,
     selectedIcon: Icons.calendar_month,
     builder: (_) => const CalendarScreen(),
@@ -248,6 +258,14 @@ class _BottomBar extends StatelessWidget {
           settings.notesColor,
           settings.tasksColor,
         ];
+        // Todos los nombres con la misma letra (la de Listado, 11,5): si
+        // alguno no entra (letra grande del teléfono) se achican todos juntos.
+        final slot =
+            (MediaQuery.sizeOf(context).width - 2 * 2 - 9) / appTabs.length;
+        final fit = sameFontSize(context, [
+          for (final t in appTabs) t.shown,
+        ], slot - 6, weight: FontWeight.w600);
+        final labelSize = fit < 11.5 ? fit : 11.5;
         Widget item(int i) {
           final t = appTabs[i];
           final selected = i == index;
@@ -267,15 +285,18 @@ class _BottomBar extends StatelessWidget {
                   key: Key('tab-${t.label}'),
                   borderRadius: BorderRadius.circular(12),
                   onTap: () => onSelect(i),
-                  child: AnimatedScale(
-                    scale: selected ? 1.12 : 1,
-                    duration: const Duration(milliseconds: 150),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Badge(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Solo el dibujo del elegido se agranda: los
+                        // nombres quedan todos del mismo tamaño y a la
+                        // misma altura.
+                        AnimatedScale(
+                          scale: selected ? 1.12 : 1,
+                          duration: const Duration(milliseconds: 150),
+                          child: Badge(
                             isLabelVisible: badges[i] > 0,
                             backgroundColor: const Color(0xFFD32F2F),
                             textColor: Colors.white,
@@ -306,27 +327,24 @@ class _BottomBar extends StatelessWidget {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              t.label,
-                              maxLines: 1,
-                              style: TextStyle(
-                                // Mensaje, Almanaque y Listado con la letra
-                                // un poco más chica, así quedan separados.
-                                fontSize: own ? 11.5 : 10.5,
-                                color: selected || own ? c : plain,
-                                fontWeight: selected
-                                    ? FontWeight.w700
-                                    : own
-                                    ? FontWeight.w500
-                                    : FontWeight.w400,
-                              ),
-                            ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          t.shown,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.visible,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: labelSize,
+                            height: 1.2,
+                            color: selected || own ? c : plain,
+                            fontWeight: selected
+                                ? FontWeight.w600
+                                : FontWeight.w500,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

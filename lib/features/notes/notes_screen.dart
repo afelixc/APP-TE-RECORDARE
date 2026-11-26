@@ -220,6 +220,7 @@ class _NotesScreenState extends State<NotesScreen> {
         color: n.color,
         background: n.background,
         title: n.name,
+        isFolder: true,
         where: where,
         subfolders: _s.notes.where((x) => x.parent == n.id && x.folder).length,
         status: BoxStatus(
@@ -238,8 +239,7 @@ class _NotesScreenState extends State<NotesScreen> {
       icon: Icons.description,
       color: n.color,
       background: n.background,
-      title: n.name.isEmpty ? 'Sin título' : n.name,
-      preview: n.preview,
+      title: boxTitle(n),
       where: where,
       status: BoxStatus(
         pending: n.pendingChecks,
@@ -400,13 +400,8 @@ class _NotesScreenState extends State<NotesScreen> {
             else
               BoxGrid(
                 titles: [
-                  for (final n in items) n.name.isEmpty ? 'Sin título' : n.name,
+                  for (final n in items) n.folder ? n.name : boxTitle(n),
                 ],
-                extraLine: items.any(
-                  (n) =>
-                      (q.isNotEmpty && n.parent != null) ||
-                      (!n.folder && n.preview.isNotEmpty),
-                ),
                 children: [for (final n in items) _card(n, q.isNotEmpty)],
               ),
           ],

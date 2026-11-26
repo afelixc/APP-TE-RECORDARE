@@ -394,6 +394,7 @@ class _TasksScreenState extends State<TasksScreen> {
       color: f.color,
       background: f.background,
       title: f.name,
+      isFolder: true,
       status: BoxStatus(
         pending: pending,
         allDone: inside.isNotEmpty,

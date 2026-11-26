@@ -89,10 +89,18 @@ class PriorityChooser extends StatelessWidget {
               ),
               const Icon(Icons.notifications_off_outlined, size: 16),
               const SizedBox(width: 4),
+              // En un solo renglón, a la altura de la casilla (pedido del
+              // usuario): si no entra, se achica la letra.
               Flexible(
-                child: Text(
-                  'Sonar aunque esté en silencio',
-                  style: theme.textTheme.bodySmall?.copyWith(fontSize: 13),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Sonar aunque esté en silencio',
+                    maxLines: 1,
+                    softWrap: false,
+                    style: theme.textTheme.bodySmall?.copyWith(fontSize: 13),
+                  ),
                 ),
               ),
             ],

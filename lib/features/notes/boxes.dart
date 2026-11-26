@@ -172,6 +172,11 @@ class NoteBox {
       .take(3)
       .join(' · ');
 
+  /// El primer renglón escrito (para la nota sin título).
+  String get firstLine => lines
+      .map((l) => l.text.replaceAll('\u200B', '').trim())
+      .firstWhere((t) => t.isNotEmpty, orElse: () => '');
+
   bool get isEmpty =>
       name.trim().isEmpty &&
       lines.every((l) => l.text.trim().isEmpty && !l.isCheck);
@@ -408,4 +413,12 @@ String _colorName(int argb) => switch (argb) {
     }
   }
   return (notes, folders, tasks);
+}
+
+/// El nombre del recuadro de una nota: su título; si no tiene, lo primero
+/// que dice adentro.
+String boxTitle(NoteBox n) {
+  if (n.name.trim().isNotEmpty) return n.name;
+  final first = n.firstLine;
+  return first.isEmpty ? 'Sin título' : first;
 }
