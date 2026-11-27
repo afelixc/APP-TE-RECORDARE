@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:recordame/core/marquee.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -231,14 +232,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Casa'), findsOneWidget);
     // Una nota suelta, más nueva: va arriba.
-    s.notes.add(NoteBox(folder: false, name: 'Ideas'));
+    s.notes.add(
+      NoteBox(
+        folder: false,
+        name: 'Ideas',
+        lines: [NoteLine('\u200B'), NoteLine('\u200BPintar la cocina')],
+      ),
+    );
     await s.saveNoteBoxes();
     await tester.pumpAndSettle();
     expect(
       tester.getTopLeft(find.text('Ideas')).dx,
       lessThan(tester.getTopLeft(find.text('Casa')).dx),
     );
-    expect(find.text('Nota'), findsOneWidget);
+    // Abajo, el primer renglón escrito (antes decía "Nota").
+    expect(find.text('Pintar la cocina'), findsOneWidget);
+    expect(find.text('Nota'), findsNothing);
     // Filtro: solo carpetas.
     await tester.tap(find.byKey(const Key('notes-filter')));
     await tester.pumpAndSettle();
@@ -246,6 +255,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Ideas'), findsNothing);
     expect(find.text('Casa'), findsOneWidget);
+  });
+
+  test('noteHint: primer renglón, segundo si no hay título, o Vacía', () {
+    expect(noteHint(NoteBox(folder: false, name: 'X')), 'Vacía');
+    expect(
+      noteHint(NoteBox(folder: false, name: 'X', lines: [NoteLine('ls -la')])),
+      'ls -la',
+    );
+    expect(
+      noteHint(
+        NoteBox(
+          folder: false,
+          lines: [NoteLine('Arriba'), NoteLine(''), NoteLine('Abajo')],
+        ),
+      ),
+      'Abajo',
+    );
+    expect(noteHint(NoteBox(folder: false, lines: [NoteLine('Solo')])), 'Nota');
   });
 
   testWidgets('editor: casilla, Enter sigue con casilla, negrita y tamaño', (
@@ -727,5 +754,43 @@ void main() {
     final b = tester.getSize(find.byKey(const Key('task-folder-General')));
     expect(a.height, b.height);
     expect(a.height, lessThan(90));
+  });
+
+  testWidgets('el nombre largo se desliza; el corto queda quieto', (
+    tester,
+  ) async {
+    marqueeOn = true;
+    addTearDown(() => marqueeOn = false);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              SizedBox(
+                width: 120,
+                child: Marquee('Comandos de la computadora para probar'),
+              ),
+              SizedBox(width: 120, child: Marquee('Corto')),
+            ],
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Corto'), findsOneWidget);
+    double dx() => tester
+        .widget<Transform>(
+          find.descendant(
+            of: find.byType(Marquee).first,
+            matching: find.byType(Transform),
+          ),
+        )
+        .transform
+        .getTranslation()
+        .x;
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(dx(), 0);
+    await tester.pump(const Duration(seconds: 3));
+    expect(dx(), lessThan(-20));
+    await tester.pumpWidget(const SizedBox());
   });
 }

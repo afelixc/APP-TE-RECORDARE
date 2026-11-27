@@ -244,7 +244,7 @@ class _NotesScreenState extends State<NotesScreen> {
       status: BoxStatus(
         pending: n.pendingChecks,
         allDone: n.checks > 0,
-        empty: 'Nota',
+        empty: noteHint(n),
       ),
       onTap: () => _edit(n),
       onGear: () => _gear(n),

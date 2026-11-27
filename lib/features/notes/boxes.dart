@@ -415,6 +415,19 @@ String _colorName(int argb) => switch (argb) {
   return (notes, folders, tasks);
 }
 
+/// Lo que dice abajo el recuadro de una nota sin casillas (pedido del
+/// usuario): el primer renglón escrito, para tener una idea; si la nota no
+/// tiene título (ya se ve arriba), el segundo. Sin nada escrito: "Vacía".
+String noteHint(NoteBox n) {
+  final written = n.lines
+      .map((l) => l.text.replaceAll('\u200B', '').trim())
+      .where((t) => t.isNotEmpty)
+      .toList();
+  if (written.isEmpty) return 'Vacía';
+  if (n.name.trim().isNotEmpty) return written.first;
+  return written.length > 1 ? written[1] : 'Nota';
+}
+
 /// El nombre del recuadro de una nota: su título; si no tiene, lo primero
 /// que dice adentro.
 String boxTitle(NoteBox n) {

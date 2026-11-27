@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/fit.dart';
+import '../../core/marquee.dart';
 import '../../core/sheets.dart';
 import 'boxes.dart';
 
@@ -17,7 +18,8 @@ bool _night(BuildContext c) => Theme.of(c).brightness == Brightness.dark;
 String pendingLabel(int n) => n == 1 ? '1 pendiente' : '$n pendientes';
 
 /// Lo que dice abajo cada recuadro: "N pendientes" en rojo sobre rosa,
-/// "Todo hecho ✓" en verde o un texto gris ("Nota", "Vacía", "3 tareas").
+/// "Todo hecho ✓" en verde o un texto gris ("Vacía", "3 tareas", el
+/// primer renglón de una nota).
 class BoxStatus extends StatelessWidget {
   const BoxStatus({
     super.key,
@@ -44,6 +46,7 @@ class BoxStatus extends StatelessWidget {
         child: Text(
           pendingLabel(pending),
           maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: _night(context) ? const Color(0xFFFF8A80) : pendingRed,
             fontSize: 13,
@@ -56,6 +59,7 @@ class BoxStatus extends StatelessWidget {
       return const Text(
         'Todo hecho ✓',
         maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: doneGreen,
           fontSize: 13,
@@ -66,6 +70,7 @@ class BoxStatus extends StatelessWidget {
     return Text(
       empty,
       maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       style: TextStyle(
         color: Theme.of(context).colorScheme.onSurfaceVariant,
         fontSize: 13,
@@ -161,10 +166,9 @@ class BoxCard extends StatelessWidget {
                           Icon(icon, size: 20, color: border),
                           const SizedBox(width: 6),
                           Expanded(
-                            child: Text(
+                            // Si no entra, se va deslizando entero.
+                            child: Marquee(
                               title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: name,
                                 fontWeight: isFolder
@@ -201,42 +205,57 @@ class BoxCard extends StatelessWidget {
                         height: 20,
                         child: Padding(
                           padding: const EdgeInsets.only(right: 8),
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (subfolders > 0) ...[
-                                  Icon(
-                                    Icons.folder_copy_outlined,
-                                    size: 15,
-                                    color: border,
+                          // Con letra grande se achica entero (como antes)
+                          // y un texto largo termina en "…".
+                          child: LayoutBuilder(
+                            builder: (context, box) {
+                              final k = MediaQuery.textScalerOf(context)
+                                  .scale(1)
+                                  .clamp(1.0, 3.0);
+                              return FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: SizedBox(
+                                  width: box.maxWidth * k,
+                                  height: 20 * k,
+                                  child: Row(
+                                    children: [
+                                      if (subfolders > 0) ...[
+                                        Icon(
+                                          Icons.folder_copy_outlined,
+                                          size: 15,
+                                          color: border,
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '$subfolders  ',
+                                          style: TextStyle(
+                                            color: border,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                      Flexible(child: status),
+                                      if (where != null) ...[
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            where!,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              color: scheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    '$subfolders  ',
-                                    style: TextStyle(
-                                      color: border,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                                status,
-                                if (where != null) ...[
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    where!,
-                                    maxLines: 1,
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      color: scheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),
@@ -250,7 +269,10 @@ class BoxCard extends StatelessWidget {
       ),
     );
     if (!isFolder) {
-      return Padding(padding: const EdgeInsets.only(top: _tab), child: card);
+      return Padding(
+        padding: const EdgeInsets.only(top: _tab),
+        child: card,
+      );
     }
     // La carpeta: pestañita arriba a la izquierda, como una carpeta de verdad.
     return Column(
@@ -344,11 +366,7 @@ double boxNameSize(BuildContext context, Iterable<String> names, double width) {
 /// Los recuadros de a dos, todos del mismo tamaño y con la misma letra en
 /// el nombre ([titles], para calcularla).
 class BoxGrid extends StatelessWidget {
-  const BoxGrid({
-    super.key,
-    required this.children,
-    required this.titles,
-  });
+  const BoxGrid({super.key, required this.children, required this.titles});
 
   final List<Widget> children;
   final List<String> titles;
